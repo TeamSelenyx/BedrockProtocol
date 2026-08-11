@@ -19,8 +19,12 @@ use Ramsey\Uuid\Uuid;
 
 class SkinData{
 
-	public const ARM_SIZE_SLIM = "slim";
-	public const ARM_SIZE_WIDE = "wide";
+	public const ARM_SIZE_SLIM = 0;
+	public const ARM_SIZE_WIDE = 1;
+
+	public const TRUSTED_SKIN_UNSET = "unset";
+	public const TRUSTED_SKIN_FALSE = "false";
+	public const TRUSTED_SKIN_TRUE = "true";
 
 	private SkinImage $capeImage;
 	private string $fullSkinId;
@@ -42,8 +46,8 @@ class SkinData{
 		private string $animationData = "",
 		private string $capeId = "",
 		?string $fullSkinId = null,
-		private string $armSize = self::ARM_SIZE_WIDE,
-		private string $skinColor = "",
+		private int $armSize = self::ARM_SIZE_WIDE,
+		private int $skinColor = 0,
 		private array $personaPieces = [],
 		private array $pieceTintColors = [],
 		private bool $isVerified = true,
@@ -51,7 +55,8 @@ class SkinData{
 		private bool $persona = false,
 		private bool $personaCapeOnClassic = false,
 		private bool $isPrimaryUser = true,
-		private bool $override = true
+		private bool $override = true,
+		private string $profileHash = ""
 	){
 		$this->capeImage = $capeImage ?? new SkinImage(0, 0, "");
 		//this has to be unique or the client will do stupid things
@@ -101,11 +106,11 @@ class SkinData{
 		return $this->fullSkinId;
 	}
 
-	public function getArmSize() : string{
+	public function getArmSize() : int{
 		return $this->armSize;
 	}
 
-	public function getSkinColor() : string{
+	public function getSkinColor() : int{
 		return $this->skinColor;
 	}
 
@@ -142,6 +147,12 @@ class SkinData{
 	public function isVerified() : bool{
 		return $this->isVerified;
 	}
+
+	public function getTrustedSkinFlag() : string{
+		return $this->isVerified ? self::TRUSTED_SKIN_TRUE : self::TRUSTED_SKIN_FALSE;
+	}
+
+	public function getProfileHash() : string{ return $this->profileHash; }
 
 	/**
 	 * @internal

@@ -16,6 +16,7 @@ namespace pocketmine\network\mcpe\protocol;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\recipe\MaterialReducerRecipe;
@@ -70,21 +71,16 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function decodePayload(ByteBufferReader $in) : void{
-		$recipeCount = VarInt::readUnsignedInt($in);
-		$previousType = "none";
-		for($i = 0; $i < $recipeCount; ++$i){
-			$recipeType = VarInt::readSignedInt($in);
+		//recipes are grouped into one length-prefixed vector per type, in this exact order
+		$this->getRecipes($in, self::ENTRY_SHAPED, ShapedRecipe::decode(...));
+		$this->getRecipes($in, self::ENTRY_SHAPELESS, ShapelessRecipe::decode(...));
+		$this->getRecipes($in, self::ENTRY_MULTI, MultiRecipe::decode(...));
+		$this->getRecipes($in, self::ENTRY_USER_DATA_SHAPELESS, ShapelessRecipe::decode(...));
+		$this->getRecipes($in, self::ENTRY_SHAPELESS_CHEMISTRY, ShapelessRecipe::decode(...));
+		$this->getRecipes($in, self::ENTRY_SHAPED_CHEMISTRY, ShapedRecipe::decode(...));
+		$this->getRecipes($in, self::ENTRY_SMITHING_TRANSFORM, SmithingTransformRecipe::decode(...));
+		$this->getRecipes($in, self::ENTRY_SMITHING_TRIM, SmithingTrimRecipe::decode(...));
 
-			$this->recipesWithTypeIds[] = match($recipeType){
-				self::ENTRY_SHAPELESS, self::ENTRY_USER_DATA_SHAPELESS, self::ENTRY_SHAPELESS_CHEMISTRY => ShapelessRecipe::decode($recipeType, $in),
-				self::ENTRY_SHAPED, self::ENTRY_SHAPED_CHEMISTRY => ShapedRecipe::decode($recipeType, $in),
-				self::ENTRY_MULTI => MultiRecipe::decode($recipeType, $in),
-				self::ENTRY_SMITHING_TRANSFORM => SmithingTransformRecipe::decode($recipeType, $in),
-				self::ENTRY_SMITHING_TRIM => SmithingTrimRecipe::decode($recipeType, $in),
-				default => throw new PacketDecodeException("Unhandled recipe type $recipeType (previous was $previousType)"),
-			};
-			$previousType = $recipeType;
-		}
 		for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
 			$inputId = VarInt::readSignedInt($in);
 			$inputMeta = VarInt::readSignedInt($in);
@@ -114,12 +110,47 @@ class CraftingDataPacket extends DataPacket implements ClientboundPacket{
 		$this->cleanRecipes = CommonTypes::getBool($in);
 	}
 
-	protected function encodePayload(ByteBufferWriter $out) : void{
-		VarInt::writeUnsignedInt($out, count($this->recipesWithTypeIds));
-		foreach($this->recipesWithTypeIds as $d){
-			VarInt::writeSignedInt($out, $d->getTypeId());
-			$d->encode($out);
+	/**
+	 * @phpstan-param \Closure(int, ByteBufferReader) : RecipeWithTypeId $decoder
+	 *
+	 * @throws PacketDecodeException
+	 * @throws DataDecodeException
+	 */
+	private function getRecipes(ByteBufferReader $in, int $typeId, \Closure $decoder) : void{
+		for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
+			$this->recipesWithTypeIds[] = $decoder($typeId, $in);
 		}
+	}
+
+	/**
+	 * @param RecipeWithTypeId[] $recipes
+	 */
+	private static function putRecipes(ByteBufferWriter $out, array $recipes) : void{
+		VarInt::writeUnsignedInt($out, count($recipes));
+		foreach($recipes as $recipe){
+			$recipe->encode($out);
+		}
+	}
+
+	protected function encodePayload(ByteBufferWriter $out) : void{
+		$byType = [];
+		foreach($this->recipesWithTypeIds as $recipe){
+			$typeId = $recipe->getTypeId();
+			match($typeId){
+				self::ENTRY_SHAPED, self::ENTRY_SHAPELESS, self::ENTRY_MULTI, self::ENTRY_USER_DATA_SHAPELESS,
+				self::ENTRY_SHAPELESS_CHEMISTRY, self::ENTRY_SHAPED_CHEMISTRY, self::ENTRY_SMITHING_TRANSFORM,
+				self::ENTRY_SMITHING_TRIM => $byType[$typeId][] = $recipe,
+				default => throw new \InvalidArgumentException("Unhandled recipe type $typeId"),
+			};
+		}
+		self::putRecipes($out, $byType[self::ENTRY_SHAPED] ?? []);
+		self::putRecipes($out, $byType[self::ENTRY_SHAPELESS] ?? []);
+		self::putRecipes($out, $byType[self::ENTRY_MULTI] ?? []);
+		self::putRecipes($out, $byType[self::ENTRY_USER_DATA_SHAPELESS] ?? []);
+		self::putRecipes($out, $byType[self::ENTRY_SHAPELESS_CHEMISTRY] ?? []);
+		self::putRecipes($out, $byType[self::ENTRY_SHAPED_CHEMISTRY] ?? []);
+		self::putRecipes($out, $byType[self::ENTRY_SMITHING_TRANSFORM] ?? []);
+		self::putRecipes($out, $byType[self::ENTRY_SMITHING_TRIM] ?? []);
 		VarInt::writeUnsignedInt($out, count($this->potionTypeRecipes));
 		foreach($this->potionTypeRecipes as $recipe){
 			VarInt::writeSignedInt($out, $recipe->getInputItemId());

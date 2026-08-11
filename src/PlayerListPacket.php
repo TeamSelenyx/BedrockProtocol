@@ -27,8 +27,11 @@ use function count;
 class PlayerListPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PLAYER_LIST_PACKET;
 
-	public const TYPE_ADD = 0;
-	public const TYPE_REMOVE = 1;
+	public const TYPE_REMOVE = 0;
+	public const TYPE_ADD = 1;
+
+	private const ACTION_ADD = 0;
+	private const ACTION_REMOVE = 1;
 
 	public int $type;
 	/** @var PlayerListEntry[] */
@@ -60,10 +63,16 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 	}
 
 	protected function decodePayload(ByteBufferReader $in) : void{
-		$this->type = Byte::readUnsigned($in);
 		$count = VarInt::readUnsignedInt($in);
 		for($i = 0; $i < $count; ++$i){
 			$entry = new PlayerListEntry();
+			$type = VarInt::readUnsignedInt($in);
+			if($i === 0){
+				$this->type = $type;
+			}elseif($type !== $this->type){
+				throw new PacketDecodeException("Mixed entry types in the same PlayerListPacket are not supported");
+			}
+			Byte::readUnsigned($in);
 
 			if($this->type === self::TYPE_ADD){
 				$entry->uuid = CommonTypes::getUUID($in);
@@ -83,17 +92,13 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 
 			$this->entries[$i] = $entry;
 		}
-		if($this->type === self::TYPE_ADD){
-			for($i = 0; $i < $count; ++$i){
-				$this->entries[$i]->skinData->setVerified(CommonTypes::getBool($in));
-			}
-		}
 	}
 
 	protected function encodePayload(ByteBufferWriter $out) : void{
-		Byte::writeUnsigned($out, $this->type);
 		VarInt::writeUnsignedInt($out, count($this->entries));
 		foreach($this->entries as $entry){
+			VarInt::writeUnsignedInt($out, $this->type);
+			Byte::writeUnsigned($out, $this->type === self::TYPE_ADD ? self::ACTION_ADD : self::ACTION_REMOVE);
 			if($this->type === self::TYPE_ADD){
 				CommonTypes::putUUID($out, $entry->uuid);
 				CommonTypes::putActorUniqueId($out, $entry->actorUniqueId);
@@ -108,11 +113,6 @@ class PlayerListPacket extends DataPacket implements ClientboundPacket{
 				LE::writeUnsignedInt($out, ($entry->color ?? new Color(255, 255, 255))->toARGB());
 			}else{
 				CommonTypes::putUUID($out, $entry->uuid);
-			}
-		}
-		if($this->type === self::TYPE_ADD){
-			foreach($this->entries as $entry){
-				CommonTypes::putBool($out, $entry->skinData->isVerified());
 			}
 		}
 	}

@@ -20,8 +20,11 @@ final class PersonaPieceTintColor{
 	public const PIECE_TYPE_PERSONA_HAIR = "persona_hair";
 	public const PIECE_TYPE_PERSONA_MOUTH = "persona_mouth";
 
+	//the wire always carries exactly this many colours, with no length prefix
+	public const COLOR_COUNT = 4;
+
 	/**
-	 * @param string[] $colors
+	 * @param int[] $colors ARGB
 	 */
 	public function __construct(
 		private string $pieceType,
@@ -33,7 +36,7 @@ final class PersonaPieceTintColor{
 	}
 
 	/**
-	 * @return string[]
+	 * @return int[] ARGB
 	 */
 	public function getColors() : array{
 		return $this->colors;

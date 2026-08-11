@@ -16,29 +16,20 @@ namespace pocketmine\network\mcpe\protocol\types;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
-use pmmp\encoding\LE;
 
-final class IntGameRule extends GameRule{
+/**
+ * Gamerule which carries no value at all.
+ */
+final class UnsetGameRule extends GameRule{
 	use GetTypeIdFromConstTrait;
 
-	public const ID = GameRuleType::INT;
-
-	private int $value;
-
-	public function __construct(int $value, bool $isPlayerModifiable){
-		parent::__construct($isPlayerModifiable);
-		$this->value = $value;
-	}
-
-	public function getValue() : int{
-		return $this->value;
-	}
+	public const ID = GameRuleType::UNSET;
 
 	public function encode(ByteBufferWriter $out, bool $isStartGame) : void{
-		LE::writeUnsignedInt($out, $this->value);
+		//NOOP
 	}
 
-	public static function decode(ByteBufferReader $in, bool $isPlayerModifiable, bool $isStartGame) : self{
-		return new self(LE::readUnsignedInt($in), $isPlayerModifiable);
+	public static function decode(ByteBufferReader $in, bool $isPlayerModifiable) : self{
+		return new self($isPlayerModifiable);
 	}
 }

@@ -22,41 +22,50 @@ use function count;
 
 final class RecipeUnlockingRequirement{
 
+	public const CONTEXT_NONE = 0;
+	public const CONTEXT_ALWAYS_UNLOCKED = 1;
+	public const CONTEXT_PLAYER_IN_WATER = 2;
+	public const CONTEXT_PLAYER_HAS_MANY_ITEMS = 3;
+
 	/**
-	 * @param RecipeIngredient[]|null $unlockingIngredients
-	 * @phpstan-param list<RecipeIngredient>|null $unlockingIngredients
+	 * @param RecipeIngredient[] $unlockingIngredients
+	 * @phpstan-param list<RecipeIngredient> $unlockingIngredients
 	 */
 	public function __construct(
-		private ?array $unlockingIngredients
+		private int $context,
+		private array $unlockingIngredients
 	){}
+
+	public function getContext() : int{ return $this->context; }
 
 	/**
 	 * @return RecipeIngredient[]|null
 	 * @phpstan-return list<RecipeIngredient>|null
 	 */
-	public function getUnlockingIngredients() : ?array{ return $this->unlockingIngredients; }
+	public function getUnlockingIngredients() : array{ return $this->unlockingIngredients; }
 
 	public static function read(ByteBufferReader $in) : self{
-		//I don't know what the point of this structure is. It could easily have been a list<RecipeIngredient> instead.
-		//It's basically just an optional list, which could have been done by an empty list wherever it's not needed.
-		$unlockingContext = CommonTypes::getBool($in);
-		$unlockingIngredients = null;
-		if(!$unlockingContext){
-			$unlockingIngredients = [];
+		$context = VarInt::readSignedInt($in);
+
+		//ingredients are only present when the recipe isn't unlocked by some other means
+		$unlockingIngredients = [];
+		if(CommonTypes::getBool($in)){
 			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; $i++){
-				$unlockingIngredients[] = CommonTypes::getRecipeIngredient($in);
+				$unlockingIngredients[] = RecipeIngredient::read($in);
 			}
 		}
 
-		return new self($unlockingIngredients);
+		return new self($context, $unlockingIngredients);
 	}
 
 	public function write(ByteBufferWriter $out) : void{
-		CommonTypes::putBool($out, $this->unlockingIngredients === null);
-		if($this->unlockingIngredients !== null){
+		VarInt::writeSignedInt($out, $this->context);
+
+		CommonTypes::putBool($out, $hasIngredients = $this->context === self::CONTEXT_NONE);
+		if($hasIngredients){
 			VarInt::writeUnsignedInt($out, count($this->unlockingIngredients));
 			foreach($this->unlockingIngredients as $ingredient){
-				CommonTypes::putRecipeIngredient($out, $ingredient);
+				$ingredient->write($out);
 			}
 		}
 	}
