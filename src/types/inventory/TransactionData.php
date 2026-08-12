@@ -19,6 +19,7 @@ use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\PacketDecodeException;
+use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use function count;
 
 abstract class TransactionData{
@@ -38,26 +39,15 @@ abstract class TransactionData{
 	 * @throws DataDecodeException
 	 * @throws PacketDecodeException
 	 */
-	final public function decodeTransaction(ByteBufferReader $in) : void{
-		$actionCount = VarInt::readUnsignedInt($in);
-		$this->actions = [];
-		for($i = 0; $i < $actionCount; ++$i){
-			$this->actions[] = (new NetworkInventoryAction())->readTransaction($in);
+	final public function decode(ByteBufferReader $in) : void{
+		$hasValue = CommonTypes::getBool($in);
+		if($hasValue){
+			$actionCount = VarInt::readUnsignedInt($in);
+			for($i = 0; $i < $actionCount; ++$i){
+				$this->actions[] = (new NetworkInventoryAction())->read($in);
+			}
+			$this->decodeData($in);
 		}
-		$this->decodeData($in);
-	}
-
-	/**
-	 * @throws DataDecodeException
-	 * @throws PacketDecodeException
-	 */
-	final public function decodeAuthInput(ByteBufferReader $in) : void{
-		$actionCount = VarInt::readUnsignedInt($in);
-		$this->actions = [];
-		for($i = 0; $i < $actionCount; ++$i){
-			$this->actions[] = (new NetworkInventoryAction())->readAuthInput($in);
-		}
-		$this->decodeData($in);
 	}
 
 	/**
@@ -66,20 +56,15 @@ abstract class TransactionData{
 	 */
 	abstract protected function decodeData(ByteBufferReader $in) : void;
 
-	final public function encodeTransaction(ByteBufferWriter $out) : void{
-		VarInt::writeUnsignedInt($out, count($this->actions));
-		foreach($this->actions as $action){
-			$action->writeTransaction($out);
+	final public function encode(ByteBufferWriter $out) : void{
+		CommonTypes::putBool($out, $hasValue = count($this->actions) > 0);
+		if($hasValue){
+			VarInt::writeUnsignedInt($out, count($this->actions));
+			foreach($this->actions as $action){
+				$action->write($out);
+			}
+			$this->encodeData($out);
 		}
-		$this->encodeData($out);
-	}
-
-	final public function encodeAuthInput(ByteBufferWriter $out) : void{
-		VarInt::writeUnsignedInt($out, count($this->actions));
-		foreach($this->actions as $action){
-			$action->writeAuthInput($out);
-		}
-		$this->encodeData($out);
 	}
 
 	abstract protected function encodeData(ByteBufferWriter $out) : void;

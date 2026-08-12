@@ -22,6 +22,7 @@ final class LevelSoundEvent{
 	private function __construct(){
 		//NOOP
 	}
+
 	public const ITEM_USE_ON = "item.use.on";
 	public const HIT = "hit";
 	public const STEP = "step";
@@ -135,7 +136,7 @@ final class LevelSoundEvent{
 	public const RECORD_WARD = "record.ward";
 	public const RECORD_11 = "record.11";
 	public const RECORD_WAIT = "record.wait";
-	public const RECORD_NULL = "record.null";
+	public const STOP_RECORD = "record.null";
 	public const FLOP = "flop";
 	public const ELDERGUARDIAN_CURSE = "elderguardian.curse";
 	public const MOB_WARNING = "mob.warning";
@@ -591,10 +592,4 @@ final class LevelSoundEvent{
 	public const RECORD_BOUNCE = "record.bounce";
 	public const BUCKET_FILL_LAND_ANIMAL = "bucket.fill.land_animal";
 	public const BUCKET_EMPTY_LAND_ANIMAL = "bucket.empty.land_animal";
-	public const GEYSER_CONTINUOUS_ERUPTION_START = "geyser_continuous_eruption_start";
-	public const GEYSER_CONTINUOUS_ERUPTION_ACTIVE = "geyser_continuous_eruption_active";
-	public const MOUNT = "mount";
-	public const DISMOUNT = "dismount";
-	public const STRAW_BED_BREAK_LEAVE = "straw_bed.break_leave";
-
 }

@@ -22,9 +22,9 @@ class SkinData{
 	public const ARM_SIZE_SLIM = 0;
 	public const ARM_SIZE_WIDE = 1;
 
-	public const TRUSTED_SKIN_UNSET = "unset";
-	public const TRUSTED_SKIN_FALSE = "false";
-	public const TRUSTED_SKIN_TRUE = "true";
+	public const TRUSTED_SKIN_FLAG_UNSET = "unset";
+	public const TRUSTED_SKIN_FLAG_FALSE = "false";
+	public const TRUSTED_SKIN_FLAG_TRUE = "true";
 
 	private SkinImage $capeImage;
 	private string $fullSkinId;
@@ -56,6 +56,7 @@ class SkinData{
 		private bool $personaCapeOnClassic = false,
 		private bool $isPrimaryUser = true,
 		private bool $override = true,
+		private string $trustedSkinFlag = self::TRUSTED_SKIN_FLAG_UNSET,
 		private string $profileHash = ""
 	){
 		$this->capeImage = $capeImage ?? new SkinImage(0, 0, "");
@@ -144,15 +145,13 @@ class SkinData{
 
 	public function isOverride() : bool{ return $this->override; }
 
+	public function getTrustedSkinFlag() : string{ return $this->trustedSkinFlag; }
+
+	public function getProfileHash() : string{ return $this->profileHash; }
+
 	public function isVerified() : bool{
 		return $this->isVerified;
 	}
-
-	public function getTrustedSkinFlag() : string{
-		return $this->isVerified ? self::TRUSTED_SKIN_TRUE : self::TRUSTED_SKIN_FALSE;
-	}
-
-	public function getProfileHash() : string{ return $this->profileHash; }
 
 	/**
 	 * @internal

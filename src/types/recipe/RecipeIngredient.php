@@ -43,29 +43,32 @@ final class RecipeIngredient{
 	}
 
 	/**
-	 * Reads an ingredient in the format used by CraftingDataPacket, which tags descriptors by name and encodes aux
-	 * values as varints, unlike CommonTypes::getRecipeIngredient().
+	 * Reads an ingredient in the format used by CraftingDataPacket, which differs from the one used everywhere else
+	 * (see CommonTypes::getRecipeIngredient()).
 	 *
 	 * @throws PacketDecodeException
 	 */
 	public static function read(ByteBufferReader $in) : self{
-		if(VarInt::readUnsignedInt($in) === 0){
-			VarInt::readSignedInt($in); //aux value, always EMPTY_AUX_VALUE
-			return new self(null, VarInt::readSignedInt($in));
+		$valid = VarInt::readUnsignedInt($in);
+		if($valid === 0){
+			VarInt::readSignedInt($in); //aux value, always 0x7fff
+			$count = VarInt::readSignedInt($in);
+			return new self(null, $count);
 		}
 
 		$type = CommonTypes::getString($in);
 		$descriptor = match($type){
-			self::TYPE_NAME => new StringIdMetaItemDescriptor(CommonTypes::getString($in), VarInt::readSignedInt($in)),
+			self::TYPE_NAME => NameItemDescriptor::read($in),
 			self::TYPE_MOLANG => MolangItemDescriptor::read($in),
 			self::TYPE_ITEM_TAG => TagItemDescriptor::read($in),
 			default => throw new PacketDecodeException("Unknown item descriptor type \"$type\"")
 		};
 		if($descriptor instanceof TagItemDescriptor){
-			VarInt::readSignedInt($in); //aux value, always EMPTY_AUX_VALUE
+			VarInt::readSignedInt($in); //aux value, always 0x7fff
 		}
+		$count = VarInt::readSignedInt($in);
 
-		return new self($descriptor, VarInt::readSignedInt($in));
+		return new self($descriptor, $count);
 	}
 
 	public function write(ByteBufferWriter $out) : void{
@@ -79,22 +82,15 @@ final class RecipeIngredient{
 
 		VarInt::writeUnsignedInt($out, 1);
 		CommonTypes::putString($out, match(true){
-			$descriptor instanceof StringIdMetaItemDescriptor => self::TYPE_NAME,
+			$descriptor instanceof NameItemDescriptor => self::TYPE_NAME,
 			$descriptor instanceof MolangItemDescriptor => self::TYPE_MOLANG,
 			$descriptor instanceof TagItemDescriptor => self::TYPE_ITEM_TAG,
-			default => throw new \LogicException("Unsupported item descriptor type " . get_class($descriptor))
+			default => throw new \LogicException("Unknown item descriptor type " . get_class($descriptor))
 		});
-
-		if($descriptor instanceof StringIdMetaItemDescriptor){
-			CommonTypes::putString($out, $descriptor->getId());
-			VarInt::writeSignedInt($out, $descriptor->getMeta());
-		}else{
-			$descriptor->write($out);
-			if($descriptor instanceof TagItemDescriptor){
-				VarInt::writeSignedInt($out, self::EMPTY_AUX_VALUE);
-			}
+		$descriptor->write($out);
+		if($descriptor instanceof TagItemDescriptor){
+			VarInt::writeSignedInt($out, self::EMPTY_AUX_VALUE);
 		}
-
 		VarInt::writeSignedInt($out, $this->count);
 	}
 }

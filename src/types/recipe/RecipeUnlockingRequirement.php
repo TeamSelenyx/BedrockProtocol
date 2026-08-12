@@ -28,41 +28,39 @@ final class RecipeUnlockingRequirement{
 	public const CONTEXT_PLAYER_HAS_MANY_ITEMS = 3;
 
 	/**
-	 * @param RecipeIngredient[] $unlockingIngredients
-	 * @phpstan-param list<RecipeIngredient> $unlockingIngredients
+	 * @param RecipeIngredient[]|null $unlockingIngredients
+	 * @phpstan-param list<RecipeIngredient>|null $unlockingIngredients
 	 */
 	public function __construct(
-		private int $context,
-		private array $unlockingIngredients
+		private int $unlockingContext,
+		private ?array $unlockingIngredients
 	){}
 
-	public function getContext() : int{ return $this->context; }
+	public function getUnlockingContext() : int{ return $this->unlockingContext; }
 
 	/**
 	 * @return RecipeIngredient[]|null
 	 * @phpstan-return list<RecipeIngredient>|null
 	 */
-	public function getUnlockingIngredients() : array{ return $this->unlockingIngredients; }
+	public function getUnlockingIngredients() : ?array{ return $this->unlockingIngredients; }
 
 	public static function read(ByteBufferReader $in) : self{
-		$context = VarInt::readSignedInt($in);
-
-		//ingredients are only present when the recipe isn't unlocked by some other means
-		$unlockingIngredients = [];
+		$unlockingContext = VarInt::readSignedInt($in);
+		$unlockingIngredients = null;
 		if(CommonTypes::getBool($in)){
+			$unlockingIngredients = [];
 			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; $i++){
 				$unlockingIngredients[] = RecipeIngredient::read($in);
 			}
 		}
 
-		return new self($context, $unlockingIngredients);
+		return new self($unlockingContext, $unlockingIngredients);
 	}
 
 	public function write(ByteBufferWriter $out) : void{
-		VarInt::writeSignedInt($out, $this->context);
-
-		CommonTypes::putBool($out, $hasIngredients = $this->context === self::CONTEXT_NONE);
-		if($hasIngredients){
+		VarInt::writeSignedInt($out, $this->unlockingContext);
+		CommonTypes::putBool($out, $this->unlockingIngredients !== null);
+		if($this->unlockingIngredients !== null){
 			VarInt::writeUnsignedInt($out, count($this->unlockingIngredients));
 			foreach($this->unlockingIngredients as $ingredient){
 				$ingredient->write($out);

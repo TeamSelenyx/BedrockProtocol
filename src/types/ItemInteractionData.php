@@ -56,7 +56,7 @@ final class ItemInteractionData{
 			}
 		}
 		$transactionData = new UseItemTransactionData();
-		$transactionData->decodeAuthInput($in);
+		$transactionData->decode($in);
 		return new ItemInteractionData($requestId, $requestChangedSlots, $transactionData);
 	}
 
@@ -68,6 +68,6 @@ final class ItemInteractionData{
 				$changedSlot->write($out);
 			}
 		}
-		$this->transactionData->encodeAuthInput($out);
+		$this->transactionData->encode($out);
 	}
 }

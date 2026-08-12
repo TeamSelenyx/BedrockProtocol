@@ -45,11 +45,11 @@ class ResourcePackClientResponsePacket extends DataPacket implements Serverbound
 
 	private function getStatusId() : string{
 		return match($this->status){
-			self::STATUS_REFUSED => "Cancel",
-			self::STATUS_SEND_PACKS => "Downloading",
-			self::STATUS_HAVE_ALL_PACKS => "DownloadingFinished",
-			self::STATUS_COMPLETED => "ResourcePackStackFinished",
-			default => throw new PacketDecodeException("Unknown resource pack response status $this->status")
+			self::STATUS_REFUSED => "cancel",
+			self::STATUS_SEND_PACKS => "downloading",
+			self::STATUS_HAVE_ALL_PACKS => "downloadingfinished",
+			self::STATUS_COMPLETED => "resourcepackstackfinished",
+			default => throw new \InvalidArgumentException("Unknown status " . $this->status)
 		};
 	}
 

@@ -44,12 +44,6 @@ final class ClientData{
 	public bool $CapeOnClassicSkin;
 
 	/** @required */
-	public int $ClientEditorConnectionIntent;
-
-	/** @required */
-	public bool $ClientIsEditorCapable;
-
-	/** @required */
 	public int $ClientRandomId;
 
 	/** @required */
@@ -81,6 +75,9 @@ final class ClientData{
 
 	/** @required */
 	public int $GuiScale;
+
+	/** @required */
+	public bool $ClientIsEditorCapable;
 
 	/** @required */
 	public string $LanguageCode;
@@ -168,4 +165,7 @@ final class ClientData{
 
 	/** @required */
 	public int $UIProfile;
+
+	/** @required */
+	public int $ClientEditorConnectionIntent;
 }

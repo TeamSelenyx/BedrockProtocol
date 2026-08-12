@@ -21,6 +21,7 @@ use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\biome\BiomeDefinitionData;
 use pocketmine\network\mcpe\protocol\types\biome\BiomeDefinitionEntry;
 use function array_map;
+use function array_values;
 use function count;
 
 class BiomeDefinitionListPacket extends DataPacket implements ClientboundPacket{
@@ -81,7 +82,7 @@ class BiomeDefinitionListPacket extends DataPacket implements ClientboundPacket{
 			$entry->getScale(),
 			$entry->getMapWaterColor(),
 			$entry->hasRain(),
-			($v = $entry->getTags()) === null ? null : array_map($addString, $v),
+			($tags = $entry->getTags()) === null ? null : array_values(array_map($addString, $tags)),
 			$entry->getChunkGenData(),
 		), $definitions);
 

@@ -17,36 +17,41 @@ namespace pocketmine\network\mcpe\protocol;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\LE;
-use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
+use pocketmine\network\mcpe\protocol\types\sound\SoundDataUpdate;
 
 class ClientboundUpdateSoundDataPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CLIENTBOUND_UPDATE_SOUND_DATA_PACKET;
 
 	private int $serverSoundHandle;
-	private string $soundEvent;
+	private SoundDataUpdate $update;
 
 	/**
 	 * @generate-create-func
 	 */
-	public static function create(int $serverSoundHandle, string $soundEvent) : self{
+	public static function create(int $serverSoundHandle, SoundDataUpdate $update) : self{
 		$result = new self;
 		$result->serverSoundHandle = $serverSoundHandle;
-		$result->soundEvent = $soundEvent;
+		$result->update = $update;
 		return $result;
 	}
 
-	public function getServerSoundHandle() : int{ return $this->serverSoundHandle; }
+	public function getServerSoundHandle() : int{
+		return $this->serverSoundHandle;
+	}
 
-	public function getSoundEvent() : string{ return $this->soundEvent; }
+	public function getUpdate() : SoundDataUpdate{
+		return $this->update;
+	}
 
 	protected function decodePayload(ByteBufferReader $in) : void{
 		$this->serverSoundHandle = LE::readUnsignedLong($in);
-		$this->soundEvent = CommonTypes::getString($in);
+		$this->update = SoundDataUpdate::read($in);
 	}
 
 	protected function encodePayload(ByteBufferWriter $out) : void{
 		LE::writeUnsignedLong($out, $this->serverSoundHandle);
-		CommonTypes::putString($out, $this->soundEvent);
+		LE::writeUnsignedInt($out, $this->update->getTypeId());
+		$this->update->write($out);
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

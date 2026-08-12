@@ -16,6 +16,7 @@ namespace pocketmine\network\mcpe\protocol\types\recipe;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 
@@ -55,7 +56,7 @@ final class SmithingTransformRecipe extends RecipeWithTypeId{
 		$addition = RecipeIngredient::read($in);
 		$output = CommonTypes::getItemStackWithoutStackId($in);
 		$blockName = CommonTypes::getString($in);
-		$recipeNetId = CommonTypes::readRecipeNetId($in);
+		$recipeNetId = VarInt::readSignedInt($in);
 
 		return new self(
 			$typeId,
@@ -76,6 +77,6 @@ final class SmithingTransformRecipe extends RecipeWithTypeId{
 		$this->addition->write($out);
 		CommonTypes::putItemStackWithoutStackId($out, $this->output);
 		CommonTypes::putString($out, $this->blockName);
-		CommonTypes::writeRecipeNetId($out, $this->recipeNetId);
+		VarInt::writeSignedInt($out, $this->recipeNetId);
 	}
 }

@@ -39,7 +39,7 @@ final class ClientDataToSkinDataHelper{
 		"persona_dress" => PersonaSkinPiece::PIECE_TYPE_DRESS,
 		"persona_top" => PersonaSkinPiece::PIECE_TYPE_TOP,
 		"persona_high_pants" => PersonaSkinPiece::PIECE_TYPE_HIGH_PANTS,
-		"persona_hand" => PersonaSkinPiece::PIECE_TYPE_HANDS,
+		"persona_hands" => PersonaSkinPiece::PIECE_TYPE_HANDS,
 		"persona_outerwear" => PersonaSkinPiece::PIECE_TYPE_OUTERWEAR,
 		"persona_facial_hair" => PersonaSkinPiece::PIECE_TYPE_FACIAL_HAIR,
 		"persona_mouth" => PersonaSkinPiece::PIECE_TYPE_MOUTH,
@@ -60,6 +60,20 @@ final class ClientDataToSkinDataHelper{
 		"persona_emote" => PersonaSkinPiece::PIECE_TYPE_EMOTE,
 	];
 
+	/**
+	 * @throws \InvalidArgumentException
+	 */
+	private static function safeB64Decode(string $base64, string $context) : string{
+		$result = base64_decode($base64, true);
+		if($result === false){
+			throw new \InvalidArgumentException("$context: Malformed base64, cannot be decoded");
+		}
+		return $result;
+	}
+
+	/**
+	 * @throws \InvalidArgumentException
+	 */
 	private static function convertArmSize(string $armSize) : int{
 		return match($armSize){
 			"slim" => SkinData::ARM_SIZE_SLIM,
@@ -72,19 +86,11 @@ final class ClientDataToSkinDataHelper{
 		return (int) hexdec(ltrim($color, "#"));
 	}
 
-	private static function convertPieceType(string $pieceType) : int{
-		return self::PIECE_TYPE_MAP[$pieceType] ?? throw new \InvalidArgumentException("Unknown persona piece type \"$pieceType\"");
-	}
-
 	/**
 	 * @throws \InvalidArgumentException
 	 */
-	private static function safeB64Decode(string $base64, string $context) : string{
-		$result = base64_decode($base64, true);
-		if($result === false){
-			throw new \InvalidArgumentException("$context: Malformed base64, cannot be decoded");
-		}
-		return $result;
+	private static function convertPieceType(string $pieceType) : int{
+		return self::PIECE_TYPE_MAP[$pieceType] ?? throw new \InvalidArgumentException("Unknown persona piece type \"$pieceType\"");
 	}
 
 	/**

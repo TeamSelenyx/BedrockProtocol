@@ -20,8 +20,9 @@ use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use Ramsey\Uuid\UuidInterface;
+use function array_chunk;
 use function count;
-use function intdiv;
+use function max;
 
 final class ShapedRecipe extends RecipeWithTypeId{
 	private string $blockName;
@@ -112,10 +113,11 @@ final class ShapedRecipe extends RecipeWithTypeId{
 		$recipeId = CommonTypes::getString($in);
 		$width = VarInt::readSignedInt($in);
 		$height = VarInt::readSignedInt($in);
-		$input = [];
+		$ingredients = [];
 		for($i = 0, $ingredientCount = VarInt::readUnsignedInt($in); $i < $ingredientCount; ++$i){
-			$input[intdiv($i, $width)][$i % $width] = RecipeIngredient::read($in);
+			$ingredients[] = RecipeIngredient::read($in);
 		}
+		$input = array_chunk($ingredients, max(1, $width));
 
 		$output = [];
 		for($k = 0, $resultCount = VarInt::readUnsignedInt($in); $k < $resultCount; ++$k){
@@ -125,9 +127,9 @@ final class ShapedRecipe extends RecipeWithTypeId{
 		$block = CommonTypes::getString($in);
 		$priority = VarInt::readSignedInt($in);
 		$symmetric = CommonTypes::getBool($in);
-		$unlockingRequirement = CommonTypes::readOptional($in, RecipeUnlockingRequirement::read(...));
+		$unlockingRequirement = CommonTypes::getBool($in) ? RecipeUnlockingRequirement::read($in) : null;
 
-		$recipeNetId = CommonTypes::readRecipeNetId($in);
+		$recipeNetId = VarInt::readSignedInt($in);
 
 		return new self($recipeType, $recipeId, $input, $output, $uuid, $block, $priority, $symmetric, $unlockingRequirement, $recipeNetId);
 	}
@@ -152,8 +154,9 @@ final class ShapedRecipe extends RecipeWithTypeId{
 		CommonTypes::putString($out, $this->blockName);
 		VarInt::writeSignedInt($out, $this->priority);
 		CommonTypes::putBool($out, $this->symmetric);
-		CommonTypes::writeOptional($out, $this->unlockingRequirement, fn(ByteBufferWriter $out, RecipeUnlockingRequirement $v) => $v->write($out));
+		CommonTypes::putBool($out, $this->unlockingRequirement !== null);
+		$this->unlockingRequirement?->write($out);
 
-		CommonTypes::writeRecipeNetId($out, $this->recipeNetId);
+		VarInt::writeSignedInt($out, $this->recipeNetId);
 	}
 }

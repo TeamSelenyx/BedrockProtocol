@@ -918,11 +918,11 @@ trait PacketHandlerDefaultImplTrait{
 		return false;
 	}
 
-	public function handleServerStoreInfo(ServerStoreInfoPacket $packet) : bool{
+	public function handleServerPresenceInfo(ServerPresenceInfoPacket $packet) : bool{
 		return false;
 	}
 
-	public function handleServerPresenceInfo(ServerPresenceInfoPacket $packet) : bool{
+	public function handleServerStoreInfo(ServerStoreInfoPacket $packet) : bool{
 		return false;
 	}
 

@@ -275,10 +275,10 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		$this->moveVecX = LE::readFloat($in);
 		$this->moveVecZ = LE::readFloat($in);
 		$this->headYaw = LE::readFloat($in);
-		//input flags are sent as a list of the indexes which are set, not as a bitset
 		$this->inputFlags = new BitSet(PlayerAuthInputFlags::NUMBER_OF_FLAGS);
 		if(CommonTypes::getBool($in)){
-			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
+			$count = VarInt::readUnsignedInt($in);
+			for($i = 0; $i < $count; ++$i){
 				$flag = VarInt::readSignedInt($in);
 				if($flag < 0 || $flag >= PlayerAuthInputFlags::NUMBER_OF_FLAGS){
 					throw new PacketDecodeException("Unknown input flag $flag");
@@ -301,7 +301,8 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		if(CommonTypes::getBool($in)){
 			$this->blockActions = CommonTypes::readOptional($in, function(ByteBufferReader $in) : array{
 				$blockActions = [];
-				for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
+				$max = VarInt::readUnsignedInt($in);
+				for($i = 0; $i < $max; ++$i){
 					$actionType = VarInt::readSignedInt($in);
 					$blockActions[] = PlayerBlockActionWithBlockInfo::read($in, $actionType);
 				}
@@ -328,14 +329,14 @@ class PlayerAuthInputPacket extends DataPacket implements ServerboundPacket{
 		LE::writeFloat($out, $this->moveVecZ);
 		LE::writeFloat($out, $this->headYaw);
 		CommonTypes::putBool($out, true);
-		$setFlags = [];
+		$flags = [];
 		for($i = 0; $i < PlayerAuthInputFlags::NUMBER_OF_FLAGS; ++$i){
 			if($this->inputFlags->get($i)){
-				$setFlags[] = $i;
+				$flags[] = $i;
 			}
 		}
-		VarInt::writeUnsignedInt($out, count($setFlags));
-		foreach($setFlags as $flag){
+		VarInt::writeUnsignedInt($out, count($flags));
+		foreach($flags as $flag){
 			VarInt::writeSignedInt($out, $flag);
 		}
 		VarInt::writeUnsignedInt($out, $this->inputMode);
