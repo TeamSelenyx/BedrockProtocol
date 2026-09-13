@@ -27,7 +27,11 @@ final class PlayerBlockActionWithBlockInfo implements PlayerBlockAction{
 		private int $actionType,
 		private BlockPosition $blockPosition,
 		private int $face
-	){}
+	){
+		if(!self::isValidActionType($actionType)){
+			throw new \InvalidArgumentException("Invalid action type for " . self::class);
+		}
+	}
 
 	public function getActionType() : int{ return $this->actionType; }
 
@@ -44,5 +48,16 @@ final class PlayerBlockActionWithBlockInfo implements PlayerBlockAction{
 	public function write(ByteBufferWriter $out) : void{
 		CommonTypes::putBlockPosition($out, $this->blockPosition);
 		VarInt::writeSignedInt($out, $this->face);
+	}
+
+	public static function isValidActionType(int $actionType) : bool{
+		return match($actionType){
+			PlayerAction::ABORT_BREAK,
+			PlayerAction::START_BREAK,
+			PlayerAction::CRACK_BREAK,
+			PlayerAction::PREDICT_DESTROY_BLOCK,
+			PlayerAction::CONTINUE_DESTROY_BLOCK => true,
+			default => false
+		};
 	}
 }
