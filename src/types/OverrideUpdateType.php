@@ -17,20 +17,11 @@ namespace pocketmine\network\mcpe\protocol\types;
 /**
  * @see PlayerUpdateEntityOverridesPacket
  */
-enum OverrideUpdateType : int{
-	use PacketIntEnumTrait;
+enum OverrideUpdateType : string{
+	use PacketOrdinalEnumTrait;
 
-	case CLEAR_OVERRIDES = 0;
-	case REMOVE_OVERRIDE = 1;
-	case SET_INT_OVERRIDE = 2;
-	case SET_FLOAT_OVERRIDE = 3;
-
-	public function getId() : string{
-		return match($this){
-			self::CLEAR_OVERRIDES => "clearoverrides",
-			self::REMOVE_OVERRIDE => "removeoverride",
-			self::SET_INT_OVERRIDE => "setintoverride",
-			self::SET_FLOAT_OVERRIDE => "setfloatoverride",
-		};
-	}
+	case CLEAR_OVERRIDES = "clearoverrides";
+	case REMOVE_OVERRIDE = "removeoverride";
+	case SET_INT_OVERRIDE = "setintoverride";
+	case SET_FLOAT_OVERRIDE = "setfloatoverride";
 }

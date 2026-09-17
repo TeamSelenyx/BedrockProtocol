@@ -28,6 +28,13 @@ class ResourcePackClientResponsePacket extends DataPacket implements Serverbound
 	public const STATUS_HAVE_ALL_PACKS = 2;
 	public const STATUS_COMPLETED = 3;
 
+	private const INNER_TYPES = [
+		self::STATUS_REFUSED => "cancel",
+		self::STATUS_SEND_PACKS => "downloading",
+		self::STATUS_HAVE_ALL_PACKS => "downloadingfinished",
+		self::STATUS_COMPLETED => "resourcepackstackfinished"
+	];
+
 	public int $status;
 	/** @var string[] */
 	public array $packIds = [];
@@ -43,23 +50,17 @@ class ResourcePackClientResponsePacket extends DataPacket implements Serverbound
 		return $result;
 	}
 
-	private function getStatusId() : string{
-		return match($this->status){
-			self::STATUS_REFUSED => "cancel",
-			self::STATUS_SEND_PACKS => "downloading",
-			self::STATUS_HAVE_ALL_PACKS => "downloadingfinished",
-			self::STATUS_COMPLETED => "resourcepackstackfinished",
-			default => throw new \InvalidArgumentException("Unknown status " . $this->status)
-		};
-	}
-
 	protected function decodePayload(ByteBufferReader $in) : void{
 		$this->status = VarInt::readUnsignedInt($in);
-		CommonTypes::getString($in);
-		$this->packIds = [];
+		$innerType = CommonTypes::getString($in);
+		$expectedInnerType = self::INNER_TYPES[$this->status] ?? "unknown";
+		if($innerType !== $expectedInnerType){
+			throw new PacketDecodeException("Unexpected inner type $innerType for resource pack client response status $this->status, expected $expectedInnerType");
+		}
+
 		if($this->status === self::STATUS_SEND_PACKS){
-			$entryCount = VarInt::readUnsignedInt($in);
-			while($entryCount-- > 0){
+			$this->packIds = [];
+			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
 				$this->packIds[] = CommonTypes::getString($in);
 			}
 		}
@@ -67,7 +68,10 @@ class ResourcePackClientResponsePacket extends DataPacket implements Serverbound
 
 	protected function encodePayload(ByteBufferWriter $out) : void{
 		VarInt::writeUnsignedInt($out, $this->status);
-		CommonTypes::putString($out, $this->getStatusId());
+		if(!isset(self::INNER_TYPES[$this->status])){
+			throw new \LogicException("Unknown resource pack client response status $this->status");
+		}
+		CommonTypes::putString($out, self::INNER_TYPES[$this->status]);
 		if($this->status === self::STATUS_SEND_PACKS){
 			VarInt::writeUnsignedInt($out, count($this->packIds));
 			foreach($this->packIds as $id){

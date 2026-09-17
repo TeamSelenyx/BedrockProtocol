@@ -18,6 +18,7 @@ use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\DataDecodeException;
 use pmmp\encoding\LE;
+use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 
 class MoveActorDeltaPacket extends DataPacket implements ClientboundPacket{
@@ -31,9 +32,11 @@ class MoveActorDeltaPacket extends DataPacket implements ClientboundPacket{
 	public ?float $yaw = null;
 	public ?float $headYaw = null;
 	public bool $onGround = false;
-	public bool $teleport = false;
-	public bool $forceMoveLocalEntity = false;
+	public bool $teleport = false; //force move in the docs
+	public bool $forceMoveLocalEntity = false; //force move local entity in the docs
 	public bool $forceCompletion = false;
+	/** Expected number of ticks before the next movement update, used for position interpolation duration on the client. */
+	public int $ticks;
 
 	/**
 	 * @generate-create-func
@@ -50,6 +53,7 @@ class MoveActorDeltaPacket extends DataPacket implements ClientboundPacket{
 		bool $teleport,
 		bool $forceMoveLocalEntity,
 		bool $forceCompletion,
+		int $ticks,
 	) : self{
 		$result = new self;
 		$result->actorRuntimeId = $actorRuntimeId;
@@ -63,65 +67,56 @@ class MoveActorDeltaPacket extends DataPacket implements ClientboundPacket{
 		$result->teleport = $teleport;
 		$result->forceMoveLocalEntity = $forceMoveLocalEntity;
 		$result->forceCompletion = $forceCompletion;
+		$result->ticks = $ticks;
 		return $result;
 	}
 
 	/** @throws DataDecodeException */
-	private static function maybeReadCoord(ByteBufferReader $in) : ?float{
-		if(CommonTypes::getBool($in)){
-			return LE::readFloat($in);
-		}
-		return null;
+	private function maybeReadCoord(ByteBufferReader $in) : ?float{
+		return CommonTypes::readOptional($in, LE::readFloat(...));
 	}
 
 	/** @throws DataDecodeException */
-	private static function maybeReadRotation(ByteBufferReader $in) : ?float{
-		if(CommonTypes::getBool($in)){
-			return CommonTypes::getRotationByte($in);
-		}
-		return null;
+	private function maybeReadRotation(ByteBufferReader $in) : ?float{
+		return CommonTypes::readOptional($in, CommonTypes::getRotationByte(...));
 	}
 
 	protected function decodePayload(ByteBufferReader $in) : void{
 		$this->actorRuntimeId = CommonTypes::getActorRuntimeId($in);
-		$this->xPos = self::maybeReadCoord($in);
-		$this->yPos = self::maybeReadCoord($in);
-		$this->zPos = self::maybeReadCoord($in);
-		$this->pitch = self::maybeReadRotation($in);
-		$this->yaw = self::maybeReadRotation($in);
-		$this->headYaw = self::maybeReadRotation($in);
+		$this->xPos = $this->maybeReadCoord($in);
+		$this->yPos = $this->maybeReadCoord($in);
+		$this->zPos = $this->maybeReadCoord($in);
+		$this->pitch = $this->maybeReadRotation($in);
+		$this->yaw = $this->maybeReadRotation($in);
+		$this->headYaw = $this->maybeReadRotation($in);
 		$this->onGround = CommonTypes::getBool($in);
 		$this->teleport = CommonTypes::getBool($in);
 		$this->forceMoveLocalEntity = CommonTypes::getBool($in);
 		$this->forceCompletion = CommonTypes::getBool($in);
+		$this->ticks = VarInt::readUnsignedLong($in);
 	}
 
-	private static function maybeWriteCoord(ByteBufferWriter $out, ?float $val) : void{
-		CommonTypes::putBool($out, $val !== null);
-		if($val !== null){
-			LE::writeFloat($out, $val);
-		}
+	private function maybeWriteCoord(?float $val, ByteBufferWriter $out) : void{
+		CommonTypes::writeOptional($out, $val, LE::writeFloat(...));
 	}
 
-	private static function maybeWriteRotation(ByteBufferWriter $out, ?float $val) : void{
-		CommonTypes::putBool($out, $val !== null);
-		if($val !== null){
-			CommonTypes::putRotationByte($out, $val);
-		}
+	private function maybeWriteRotation(?float $val, ByteBufferWriter $out) : void{
+		CommonTypes::writeOptional($out, $val, CommonTypes::putRotationByte(...));
 	}
 
 	protected function encodePayload(ByteBufferWriter $out) : void{
 		CommonTypes::putActorRuntimeId($out, $this->actorRuntimeId);
-		self::maybeWriteCoord($out, $this->xPos);
-		self::maybeWriteCoord($out, $this->yPos);
-		self::maybeWriteCoord($out, $this->zPos);
-		self::maybeWriteRotation($out, $this->pitch);
-		self::maybeWriteRotation($out, $this->yaw);
-		self::maybeWriteRotation($out, $this->headYaw);
+		$this->maybeWriteCoord($this->xPos, $out);
+		$this->maybeWriteCoord($this->yPos, $out);
+		$this->maybeWriteCoord($this->zPos, $out);
+		$this->maybeWriteRotation($this->pitch, $out);
+		$this->maybeWriteRotation($this->yaw, $out);
+		$this->maybeWriteRotation($this->headYaw, $out);
 		CommonTypes::putBool($out, $this->onGround);
 		CommonTypes::putBool($out, $this->teleport);
 		CommonTypes::putBool($out, $this->forceMoveLocalEntity);
 		CommonTypes::putBool($out, $this->forceCompletion);
+		VarInt::writeUnsignedLong($out, $this->ticks);
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

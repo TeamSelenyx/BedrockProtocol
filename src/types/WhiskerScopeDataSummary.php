@@ -22,16 +22,16 @@ use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 final class WhiskerScopeDataSummary{
 
 	public function __construct(
-		private string $indentation,
 		private string $label,
+		private string $indentation,
 		private int $totalHighCostNS,
 		private int $totalMidCostNS,
 		private int $totalLowCostNS,
 	){}
 
-	public function getIndentation() : string{ return $this->indentation; }
-
 	public function getLabel() : string{ return $this->label; }
+
+	public function getIndentation() : string{ return $this->indentation; }
 
 	public function getTotalHighCostNS() : int{ return $this->totalHighCostNS; }
 
@@ -40,20 +40,26 @@ final class WhiskerScopeDataSummary{
 	public function getTotalLowCostNS() : int{ return $this->totalLowCostNS; }
 
 	public static function read(ByteBufferReader $in) : self{
-		$indentation = CommonTypes::getString($in);
 		$label = CommonTypes::getString($in);
-		$totalHighCostNS = LE::readSignedLong($in);
-		$totalMidCostNS = LE::readSignedLong($in);
-		$totalLowCostNS = LE::readSignedLong($in);
+		$indentation = CommonTypes::getString($in);
+		$totalHighCostNS = LE::readUnsignedLong($in);
+		$totalMidCostNS = LE::readUnsignedLong($in);
+		$totalLowCostNS = LE::readUnsignedLong($in);
 
-		return new self($indentation, $label, $totalHighCostNS, $totalMidCostNS, $totalLowCostNS);
+		return new self(
+			$label,
+			$indentation,
+			$totalHighCostNS,
+			$totalMidCostNS,
+			$totalLowCostNS
+		);
 	}
 
 	public function write(ByteBufferWriter $out) : void{
-		CommonTypes::putString($out, $this->indentation);
 		CommonTypes::putString($out, $this->label);
-		LE::writeSignedLong($out, $this->totalHighCostNS);
-		LE::writeSignedLong($out, $this->totalMidCostNS);
-		LE::writeSignedLong($out, $this->totalLowCostNS);
+		CommonTypes::putString($out, $this->indentation);
+		LE::writeUnsignedLong($out, $this->totalHighCostNS);
+		LE::writeUnsignedLong($out, $this->totalMidCostNS);
+		LE::writeUnsignedLong($out, $this->totalLowCostNS);
 	}
 }
