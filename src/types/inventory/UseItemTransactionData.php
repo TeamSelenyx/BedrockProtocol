@@ -39,6 +39,7 @@ class UseItemTransactionData extends TransactionData{
 	private BlockPosition $blockPosition;
 	private int $face;
 	private int $hotbarSlot;
+	private HandSlot $hand;
 	private ItemStackWrapper $itemInHand;
 	private Vector3 $playerPosition;
 	private Vector3 $clickPosition;
@@ -64,6 +65,8 @@ class UseItemTransactionData extends TransactionData{
 		return $this->hotbarSlot;
 	}
 
+	public function getHand() : HandSlot{ return $this->hand; }
+
 	public function getItemInHand() : ItemStackWrapper{
 		return $this->itemInHand;
 	}
@@ -85,12 +88,13 @@ class UseItemTransactionData extends TransactionData{
 	public function getClientCooldownState() : int{ return $this->clientCooldownState; }
 
 	protected function decodeData(ByteBufferReader $in) : void{
-		$this->actionType = VarInt::readUnsignedInt($in);
+		$this->actionType = VarInt::readSignedInt($in);
 		$this->triggerType = TriggerType::fromPacket(Byte::readUnsigned($in));
 		$this->blockPosition = CommonTypes::getBlockPosition($in);
 		$this->face = Byte::readUnsigned($in);
 		$this->hotbarSlot = VarInt::readSignedInt($in);
-		$this->itemInHand = CommonTypes::getNetworkItemStackDescriptor($in);
+		$this->hand = HandSlot::fromPacket(Byte::readUnsigned($in));
+		$this->itemInHand = CommonTypes::getItemStackWrapper($in);
 		$this->playerPosition = CommonTypes::getVector3($in);
 		$this->clickPosition = CommonTypes::getVector3($in);
 		$this->blockRuntimeId = VarInt::readUnsignedInt($in);
@@ -99,12 +103,13 @@ class UseItemTransactionData extends TransactionData{
 	}
 
 	protected function encodeData(ByteBufferWriter $out) : void{
-		VarInt::writeUnsignedInt($out, $this->actionType);
+		VarInt::writeSignedInt($out, $this->actionType);
 		Byte::writeUnsigned($out, $this->triggerType->value);
 		CommonTypes::putBlockPosition($out, $this->blockPosition);
 		Byte::writeUnsigned($out, $this->face);
 		VarInt::writeSignedInt($out, $this->hotbarSlot);
-		CommonTypes::putNetworkItemStackDescriptor($out, $this->itemInHand);
+		Byte::writeUnsigned($out, $this->hand->value);
+		CommonTypes::putItemStackWrapper($out, $this->itemInHand);
 		CommonTypes::putVector3($out, $this->playerPosition);
 		CommonTypes::putVector3($out, $this->clickPosition);
 		VarInt::writeUnsignedInt($out, $this->blockRuntimeId);
@@ -121,6 +126,7 @@ class UseItemTransactionData extends TransactionData{
 		BlockPosition $blockPosition,
 		int $face,
 		int $hotbarSlot,
+		HandSlot $hand,
 		ItemStackWrapper $itemInHand,
 		Vector3 $playerPosition,
 		Vector3 $clickPosition,
@@ -134,6 +140,7 @@ class UseItemTransactionData extends TransactionData{
 		$result->blockPosition = $blockPosition;
 		$result->face = $face;
 		$result->hotbarSlot = $hotbarSlot;
+		$result->hand = $hand;
 		$result->itemInHand = $itemInHand;
 		$result->playerPosition = $playerPosition;
 		$result->clickPosition = $clickPosition;
@@ -145,9 +152,10 @@ class UseItemTransactionData extends TransactionData{
 
 	/**
 	 * @param NetworkInventoryAction[] $actions
+	 * @phpstan-param list<NetworkInventoryAction> $actions
 	 */
-	public static function new(array $actions, int $actionType, TriggerType $triggerType, BlockPosition $blockPosition, int $face, int $hotbarSlot, ItemStackWrapper $itemInHand, Vector3 $playerPosition, Vector3 $clickPosition, int $blockRuntimeId, PredictedResult $clientInteractPrediction, int $clientCooldownState) : self{
-		$result = self::initSelf($actionType, $triggerType, $blockPosition, $face, $hotbarSlot, $itemInHand, $playerPosition, $clickPosition, $blockRuntimeId, $clientInteractPrediction, $clientCooldownState);
+	public static function new(array $actions, int $actionType, TriggerType $triggerType, BlockPosition $blockPosition, int $face, int $hotbarSlot, HandSlot $hand, ItemStackWrapper $itemInHand, Vector3 $playerPosition, Vector3 $clickPosition, int $blockRuntimeId, PredictedResult $clientInteractPrediction, int $clientCooldownState) : self{
+		$result = self::initSelf($actionType, $triggerType, $blockPosition, $face, $hotbarSlot, $hand, $itemInHand, $playerPosition, $clickPosition, $blockRuntimeId, $clientInteractPrediction, $clientCooldownState);
 		$result->actions = $actions;
 		return $result;
 	}

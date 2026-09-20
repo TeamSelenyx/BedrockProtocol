@@ -14,15 +14,12 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol;
 
-use InvalidArgumentException;
-use LogicException;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\LE;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\OverrideUpdateType;
-use function is_finite;
 
 class PlayerUpdateEntityOverridesPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::PLAYER_UPDATE_ENTITY_OVERRIDES_PACKET;
@@ -30,19 +27,13 @@ class PlayerUpdateEntityOverridesPacket extends DataPacket implements Clientboun
 	private int $actorUniqueId;
 	private int $propertyIndex;
 	private OverrideUpdateType $updateType;
-	private ?int $intOverrideValue = null;
-	private ?float $floatOverrideValue = null;
+	private ?int $intOverrideValue;
+	private ?float $floatOverrideValue;
 
 	/**
 	 * @generate-create-func
 	 */
-	private static function create(
-		int $actorUniqueId,
-		int $propertyIndex,
-		OverrideUpdateType $updateType,
-		?int $intOverrideValue,
-		?float $floatOverrideValue
-	) : self{
+	private static function create(int $actorUniqueId, int $propertyIndex, OverrideUpdateType $updateType, ?int $intOverrideValue, ?float $floatOverrideValue) : self{
 		$result = new self;
 		$result->actorUniqueId = $actorUniqueId;
 		$result->propertyIndex = $propertyIndex;
@@ -52,145 +43,61 @@ class PlayerUpdateEntityOverridesPacket extends DataPacket implements Clientboun
 		return $result;
 	}
 
-	public static function createIntOverride(
-		int $actorUniqueId,
-		int $propertyIndex,
-		int $value
-	) : self{
-		return self::create(
-			$actorUniqueId,
-			$propertyIndex,
-			OverrideUpdateType::SET_INT_OVERRIDE,
-			$value,
-			null
-		);
+	public static function createIntOverride(int $actorUniqueId, int $propertyIndex, int $value) : self{
+		return self::create($actorUniqueId, $propertyIndex, OverrideUpdateType::SET_INT_OVERRIDE, $value, null);
 	}
 
-	public static function createFloatOverride(
-		int $actorUniqueId,
-		int $propertyIndex,
-		float $value
-	) : self{
-		if(!is_finite($value)){
-			throw new InvalidArgumentException(
-				"Float override value must be finite"
-			);
-		}
-
-		return self::create(
-			$actorUniqueId,
-			$propertyIndex,
-			OverrideUpdateType::SET_FLOAT_OVERRIDE,
-			null,
-			$value
-		);
+	public static function createFloatOverride(int $actorUniqueId, int $propertyIndex, float $value) : self{
+		return self::create($actorUniqueId, $propertyIndex, OverrideUpdateType::SET_FLOAT_OVERRIDE, null, $value);
 	}
 
-	public static function createClearOverrides(
-		int $actorUniqueId,
-		int $propertyIndex
-	) : self{
-		return self::create(
-			$actorUniqueId,
-			$propertyIndex,
-			OverrideUpdateType::CLEAR_OVERRIDES,
-			null,
-			null
-		);
+	public static function createClearOverrides(int $actorUniqueId, int $propertyIndex) : self{
+		return self::create($actorUniqueId, $propertyIndex, OverrideUpdateType::CLEAR_OVERRIDES, null, null);
 	}
 
-	public static function createRemoveOverride(
-		int $actorUniqueId,
-		int $propertyIndex
-	) : self{
-		return self::create(
-			$actorUniqueId,
-			$propertyIndex,
-			OverrideUpdateType::REMOVE_OVERRIDE,
-			null,
-			null
-		);
+	public static function createRemoveOverride(int $actorUniqueId, int $propertyIndex) : self{
+		return self::create($actorUniqueId, $propertyIndex, OverrideUpdateType::REMOVE_OVERRIDE, null, null);
 	}
 
-	public function getActorUniqueId() : int{
-		return $this->actorUniqueId;
-	}
+	public function getActorUniqueId() : int{ return $this->actorUniqueId; }
 
-	public function getPropertyIndex() : int{
-		return $this->propertyIndex;
-	}
+	public function getPropertyIndex() : int{ return $this->propertyIndex; }
 
-	public function getUpdateType() : OverrideUpdateType{
-		return $this->updateType;
-	}
+	public function getUpdateType() : OverrideUpdateType{ return $this->updateType; }
 
-	public function getIntOverrideValue() : ?int{
-		return $this->intOverrideValue;
-	}
+	public function getIntOverrideValue() : ?int{ return $this->intOverrideValue; }
 
-	public function getFloatOverrideValue() : ?float{
-		return $this->floatOverrideValue;
-	}
+	public function getFloatOverrideValue() : ?float{ return $this->floatOverrideValue; }
 
 	protected function decodePayload(ByteBufferReader $in) : void{
 		$this->actorUniqueId = CommonTypes::getActorUniqueId($in);
 		$this->propertyIndex = VarInt::readUnsignedInt($in);
-		$this->updateType = OverrideUpdateType::fromPacket(
-			LE::readUnsignedInt($in)
-		);
-
-		$this->intOverrideValue = null;
-		$this->floatOverrideValue = null;
-
+		$this->updateType = OverrideUpdateType::fromOrdinal(VarInt::readUnsignedInt($in));
+		$innerType = OverrideUpdateType::fromPacket(CommonTypes::getString($in));
+		if($innerType->value !== $this->updateType->value){
+			throw new \RuntimeException("Unexpected inner type, expected " . $this->updateType->value . ", got " . $innerType->value);
+		}
 		if($this->updateType === OverrideUpdateType::SET_INT_OVERRIDE){
 			$this->intOverrideValue = LE::readSignedInt($in);
-		}elseif(
-			$this->updateType ===
-			OverrideUpdateType::SET_FLOAT_OVERRIDE
-		){
-			$value = LE::readFloat($in);
-
-			if(!is_finite($value)){
-				throw new PacketDecodeException(
-					"Float override value must be finite"
-				);
-			}
-
-			$this->floatOverrideValue = $value;
+		}elseif($this->updateType === OverrideUpdateType::SET_FLOAT_OVERRIDE){
+			$this->floatOverrideValue = LE::readFloat($in);
 		}
 	}
 
 	protected function encodePayload(ByteBufferWriter $out) : void{
 		CommonTypes::putActorUniqueId($out, $this->actorUniqueId);
 		VarInt::writeUnsignedInt($out, $this->propertyIndex);
-		LE::writeUnsignedInt($out, $this->updateType->value);
-
+		VarInt::writeUnsignedInt($out, $this->updateType->toOrdinal());
+		CommonTypes::putString($out, $this->updateType->value);
 		if($this->updateType === OverrideUpdateType::SET_INT_OVERRIDE){
-			if($this->intOverrideValue === null){
-				throw new LogicException(
-					"PlayerUpdateEntityOverridesPacket with type " .
-					"SET_INT_OVERRIDE requires intOverrideValue"
-				);
+			if($this->intOverrideValue === null){ // this should never be the case
+				throw new \LogicException("PlayerUpdateEntityOverridesPacket with type SET_INT_OVERRIDE requires intOverrideValue to be provided");
 			}
-
 			LE::writeSignedInt($out, $this->intOverrideValue);
-		}elseif(
-			$this->updateType ===
-			OverrideUpdateType::SET_FLOAT_OVERRIDE
-		){
-			if($this->floatOverrideValue === null){
-				throw new LogicException(
-					"PlayerUpdateEntityOverridesPacket with type " .
-					"SET_FLOAT_OVERRIDE requires floatOverrideValue"
-				);
+		}elseif($this->updateType === OverrideUpdateType::SET_FLOAT_OVERRIDE){
+			if($this->floatOverrideValue === null){ // this should never be the case
+				throw new \LogicException("PlayerUpdateEntityOverridesPacket with type SET_FLOAT_OVERRIDE requires floatOverrideValue to be provided");
 			}
-
-			if(!is_finite($this->floatOverrideValue)){
-				throw new LogicException(
-					"Float override value must be finite"
-				);
-			}
-
 			LE::writeFloat($out, $this->floatOverrideValue);
 		}
 	}

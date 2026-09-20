@@ -918,11 +918,11 @@ trait PacketHandlerDefaultImplTrait{
 		return false;
 	}
 
-	public function handleServerPresenceInfo(ServerPresenceInfoPacket $packet) : bool{
+	public function handleServerStoreInfo(ServerStoreInfoPacket $packet) : bool{
 		return false;
 	}
 
-	public function handleServerStoreInfo(ServerStoreInfoPacket $packet) : bool{
+	public function handleServerPresenceInfo(ServerPresenceInfoPacket $packet) : bool{
 		return false;
 	}
 
@@ -935,6 +935,14 @@ trait PacketHandlerDefaultImplTrait{
 	}
 
 	public function handlePartyDestinationCookieResponse(PartyDestinationCookieResponsePacket $packet) : bool{
+		return false;
+	}
+
+	public function handleSetPlayerFurnaceOptions(SetPlayerFurnaceOptionsPacket $packet) : bool{
+		return false;
+	}
+
+	public function handleRecordStarted(RecordStartedPacket $packet) : bool{
 		return false;
 	}
 }

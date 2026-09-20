@@ -19,14 +19,12 @@ use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\LE;
 use pmmp\encoding\VarInt;
-use pocketmine\color\Color;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\protocol\types\MapDecoration;
+use pocketmine\network\mcpe\protocol\types\MapImage;
 use pocketmine\network\mcpe\protocol\types\MapTrackedObject;
-use pocketmine\utils\Binary;
-use function count;
 
 class ClientboundMapItemDataPacket extends DataPacket implements ClientboundPacket{
 	public const NETWORK_ID = ProtocolInfo::CLIENTBOUND_MAP_ITEM_DATA_PACKET;
@@ -37,33 +35,26 @@ class ClientboundMapItemDataPacket extends DataPacket implements ClientboundPack
 	public BlockPosition $origin;
 
 	/**
-	 * @var int[]|null
-	 * @phpstan-var list<int>|null
+	 * @var int[]
+	 * @phpstan-var list<int>
 	 */
-	public ?array $creationMapIds = null;
+	public ?array $parentMapIds = null;
 	public ?int $scale = null;
 
 	/**
-	 * @var MapTrackedObject[]|null
-	 * @phpstan-var list<MapTrackedObject>|null
+	 * @var MapTrackedObject[]
+	 * @phpstan-var list<MapTrackedObject>
 	 */
 	public ?array $trackedEntities = null;
 	/**
-	 * @var MapDecoration[]|null
-	 * @phpstan-var list<MapDecoration>|null
+	 * @var MapDecoration[]
+	 * @phpstan-var list<MapDecoration>
 	 */
 	public ?array $decorations = null;
 
-	public ?int $width = null;
-	public ?int $height = null;
-	public ?int $startX = null;
-	public ?int $startY = null;
-
-	/**
-	 * @var Color[]|null
-	 * @phpstan-var list<Color>|null
-	 */
-	public ?array $pixels = null;
+	public ?int $xOffset = null;
+	public ?int $yOffset = null;
+	public ?MapImage $colors = null;
 
 	protected function decodePayload(ByteBufferReader $in) : void{
 		$this->mapId = CommonTypes::getActorUniqueId($in);
@@ -71,50 +62,54 @@ class ClientboundMapItemDataPacket extends DataPacket implements ClientboundPack
 		$this->isLocked = CommonTypes::getBool($in);
 		$this->origin = CommonTypes::getBlockPosition($in);
 
-		$this->creationMapIds = CommonTypes::readOptional($in, function(ByteBufferReader $in) : array{
-			$creationMapIds = [];
-			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
-				$creationMapIds[] = CommonTypes::getActorUniqueId($in);
-			}
-			return $creationMapIds;
-		});
+		$this->parentMapIds = CommonTypes::readOptional($in, static fn($in) => CommonTypes::readList($in, CommonTypes::getActorUniqueId(...)));
 
 		$this->scale = CommonTypes::readOptional($in, Byte::readUnsigned(...));
 
-		$this->trackedEntities = CommonTypes::readOptional($in, function(ByteBufferReader $in) : array{
-			$trackedEntities = [];
-			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
-				$trackedEntities[] = MapTrackedObject::read($in);
+		$this->trackedEntities = CommonTypes::readOptional($in, static fn($in) => CommonTypes::readList($in, static function($in){
+			$object = new MapTrackedObject();
+			$object->type = LE::readUnsignedInt($in);
+			if($object->type === MapTrackedObject::TYPE_BLOCK){
+				$object->blockPosition = CommonTypes::getBlockPosition($in);
+			}elseif($object->type === MapTrackedObject::TYPE_ENTITY){
+				$object->actorUniqueId = CommonTypes::getActorUniqueId($in);
+			}else{
+				throw new PacketDecodeException("Unknown map object type $object->type");
 			}
-			return $trackedEntities;
-		});
+			return $object;
+		}));
 
-		$this->decorations = CommonTypes::readOptional($in, function(ByteBufferReader $in) : array{
-			$decorations = [];
-			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
-				$icon = Byte::readUnsigned($in);
-				$rotation = Byte::readUnsigned($in);
-				$xOffset = Byte::readUnsigned($in);
-				$yOffset = Byte::readUnsigned($in);
-				$label = CommonTypes::getString($in);
-				$color = Color::fromRGBA(Binary::flipIntEndianness(LE::readUnsignedInt($in)));
-				$decorations[] = new MapDecoration($icon, $rotation, $xOffset, $yOffset, $label, $color);
+		$this->decorations = CommonTypes::readOptional($in, static fn($in) => CommonTypes::readList($in, static function($in){
+			$icon = Byte::readUnsigned($in);
+			$rotation = Byte::readUnsigned($in);
+			$xOffset = Byte::readUnsigned($in);
+			$yOffset = Byte::readUnsigned($in);
+			$label = CommonTypes::getString($in);
+			$color = CommonTypes::readColor($in);
+			return new MapDecoration($icon, $rotation, $xOffset, $yOffset, $label, $color);
+		}));
+
+		$width = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
+		$height = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
+		$this->xOffset = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
+		$this->yOffset = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
+
+		$this->colors = CommonTypes::readOptional($in, static function($in) use ($width, $height){
+			if($width === null || $height === null){
+				//ensure the packet can't get into an inconsistent state for re-encoding
+				throw new PacketDecodeException("Expected both width and height to be present if colors are present");
 			}
-			return $decorations;
-		});
-
-		$this->width = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
-		$this->height = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
-		$this->startX = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
-		$this->startY = CommonTypes::readOptional($in, VarInt::readSignedInt(...));
-
-		$this->pixels = CommonTypes::readOptional($in, function(ByteBufferReader $in) : array{
-			$pixels = [];
-			for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
-				$pixels[] = Color::fromRGBA(Binary::flipIntEndianness(LE::readUnsignedInt($in)));
+			$count = VarInt::readUnsignedInt($in);
+			if($count !== $width * $height){
+				throw new PacketDecodeException("Expected colour count of " . ($height * $width) . " (height $height * width $width), got $count");
 			}
-			return $pixels;
+
+			return MapImage::decode($in, $height, $width);
 		});
+		if($this->colors === null && ($this->xOffset !== null || $this->yOffset !== null)){
+			//ensure the packet can't get into an inconsistent state for re-encoding
+			throw new PacketDecodeException("Expected both xOffset and yOffset to be null if colors are null");
+		}
 	}
 
 	protected function encodePayload(ByteBufferWriter $out) : void{
@@ -123,44 +118,40 @@ class ClientboundMapItemDataPacket extends DataPacket implements ClientboundPack
 		CommonTypes::putBool($out, $this->isLocked);
 		CommonTypes::putBlockPosition($out, $this->origin);
 
-		CommonTypes::writeOptional($out, $this->creationMapIds, function(ByteBufferWriter $out, array $creationMapIds) : void{
-			VarInt::writeUnsignedInt($out, count($creationMapIds));
-			foreach($creationMapIds as $creationMapId){
-				CommonTypes::putActorUniqueId($out, $creationMapId);
-			}
-		});
+		CommonTypes::writeOptional($out, $this->parentMapIds, static fn($out, $v) => CommonTypes::writeList($out, $v, CommonTypes::putActorUniqueId(...)));
 
 		CommonTypes::writeOptional($out, $this->scale, Byte::writeUnsigned(...));
 
-		CommonTypes::writeOptional($out, $this->trackedEntities, function(ByteBufferWriter $out, array $trackedEntities) : void{
-			VarInt::writeUnsignedInt($out, count($trackedEntities));
-			foreach($trackedEntities as $trackedEntity){
-				$trackedEntity->write($out);
+		CommonTypes::writeOptional($out, $this->trackedEntities, static fn($out, $v) => CommonTypes::writeList($out, $v, static function($out, $object) : void{
+			LE::writeUnsignedInt($out, $object->type);
+			if($object->type === MapTrackedObject::TYPE_BLOCK){
+				CommonTypes::putBlockPosition($out, $object->blockPosition);
+			}elseif($object->type === MapTrackedObject::TYPE_ENTITY){
+				CommonTypes::putActorUniqueId($out, $object->actorUniqueId);
+			}else{
+				throw new \InvalidArgumentException("Unknown map object type $object->type");
 			}
-		});
+		}));
 
-		CommonTypes::writeOptional($out, $this->decorations, function(ByteBufferWriter $out, array $decorations) : void{
-			VarInt::writeUnsignedInt($out, count($decorations));
-			foreach($decorations as $decoration){
-				Byte::writeUnsigned($out, $decoration->getIcon());
-				Byte::writeUnsigned($out, $decoration->getRotation());
-				Byte::writeUnsigned($out, $decoration->getXOffset());
-				Byte::writeUnsigned($out, $decoration->getYOffset());
-				CommonTypes::putString($out, $decoration->getLabel());
-				LE::writeUnsignedInt($out, Binary::flipIntEndianness($decoration->getColor()->toRGBA()));
-			}
-		});
+		CommonTypes::writeOptional($out, $this->decorations, static fn($out, $v) => CommonTypes::writeList($out, $v, static function($out, $decoration) : void{
+			Byte::writeUnsigned($out, $decoration->getIcon());
+			Byte::writeUnsigned($out, $decoration->getRotation());
+			Byte::writeUnsigned($out, $decoration->getXOffset());
+			Byte::writeUnsigned($out, $decoration->getYOffset());
+			CommonTypes::putString($out, $decoration->getLabel());
+			CommonTypes::writeColor($out, $decoration->getColor());
+		}));
 
-		CommonTypes::writeOptional($out, $this->width, VarInt::writeSignedInt(...));
-		CommonTypes::writeOptional($out, $this->height, VarInt::writeSignedInt(...));
-		CommonTypes::writeOptional($out, $this->startX, VarInt::writeSignedInt(...));
-		CommonTypes::writeOptional($out, $this->startY, VarInt::writeSignedInt(...));
+		//TODO: this is icky but it's better than requiring callers to specify height and width separately from colors
+		$colors = $this->colors;
+		CommonTypes::writeOptional($out, $colors?->getWidth(), VarInt::writeSignedInt(...));
+		CommonTypes::writeOptional($out, $colors?->getHeight(), VarInt::writeSignedInt(...));
+		CommonTypes::writeOptional($out, $this->xOffset, VarInt::writeSignedInt(...));
+		CommonTypes::writeOptional($out, $this->yOffset, VarInt::writeSignedInt(...));
 
-		CommonTypes::writeOptional($out, $this->pixels, function(ByteBufferWriter $out, array $pixels) : void{
-			VarInt::writeUnsignedInt($out, count($pixels));
-			foreach($pixels as $pixel){
-				LE::writeUnsignedInt($out, Binary::flipIntEndianness($pixel->toRGBA()));
-			}
+		CommonTypes::writeOptional($out, $colors, static function($out, $colors) : void{
+			VarInt::writeUnsignedInt($out, $colors->getWidth() * $colors->getHeight()); //list count, but we handle it as a 2D array... thanks for the confusion mojang
+			$colors->encode($out);
 		});
 	}
 

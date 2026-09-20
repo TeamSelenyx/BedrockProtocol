@@ -16,14 +16,12 @@ namespace pocketmine\network\mcpe\protocol\types\recipe;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
-use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 
-final class SmithingTransformRecipe extends RecipeWithTypeId{
+final class SmithingTransformRecipe{
 
 	public function __construct(
-		int $typeId,
 		private string $recipeId,
 		private RecipeIngredient $template,
 		private RecipeIngredient $input,
@@ -31,9 +29,7 @@ final class SmithingTransformRecipe extends RecipeWithTypeId{
 		private ItemStack $output,
 		private string $blockName,
 		private int $recipeNetId
-	){
-		parent::__construct($typeId);
-	}
+	){}
 
 	public function getRecipeId() : string{ return $this->recipeId; }
 
@@ -49,17 +45,16 @@ final class SmithingTransformRecipe extends RecipeWithTypeId{
 
 	public function getRecipeNetId() : int{ return $this->recipeNetId; }
 
-	public static function decode(int $typeId, ByteBufferReader $in) : self{
+	public static function decode(ByteBufferReader $in) : self{
 		$recipeId = CommonTypes::getString($in);
-		$template = RecipeIngredient::read($in);
-		$input = RecipeIngredient::read($in);
-		$addition = RecipeIngredient::read($in);
+		$template = CommonTypes::getRecipeIngredient($in);
+		$input = CommonTypes::getRecipeIngredient($in);
+		$addition = CommonTypes::getRecipeIngredient($in);
 		$output = CommonTypes::getItemStackWithoutStackId($in);
 		$blockName = CommonTypes::getString($in);
-		$recipeNetId = VarInt::readSignedInt($in);
+		$recipeNetId = CommonTypes::readRecipeNetId($in);
 
 		return new self(
-			$typeId,
 			$recipeId,
 			$template,
 			$input,
@@ -72,11 +67,11 @@ final class SmithingTransformRecipe extends RecipeWithTypeId{
 
 	public function encode(ByteBufferWriter $out) : void{
 		CommonTypes::putString($out, $this->recipeId);
-		$this->template->write($out);
-		$this->input->write($out);
-		$this->addition->write($out);
+		CommonTypes::putRecipeIngredient($out, $this->template);
+		CommonTypes::putRecipeIngredient($out, $this->input);
+		CommonTypes::putRecipeIngredient($out, $this->addition);
 		CommonTypes::putItemStackWithoutStackId($out, $this->output);
 		CommonTypes::putString($out, $this->blockName);
-		VarInt::writeSignedInt($out, $this->recipeNetId);
+		CommonTypes::writeRecipeNetId($out, $this->recipeNetId);
 	}
 }

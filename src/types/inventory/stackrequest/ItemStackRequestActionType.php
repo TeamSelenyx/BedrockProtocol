@@ -39,11 +39,26 @@ final class ItemStackRequestActionType{
 	public const CRAFTING_NON_IMPLEMENTED_DEPRECATED_ASK_TY_LAING = 16;
 	public const CRAFTING_RESULTS_DEPRECATED_ASK_TY_LAING = 17; //no idea what this is for
 
-	/**
-	 * The legacy IDs still contain the gap left by the removal of PLACE_IN_ITEM_CONTAINER (7) and
-	 * TAKE_FROM_ITEM_CONTAINER (8), so everything from LAB_TABLE_COMBINE onwards is offset by 2.
-	 */
-	public static function toLegacyTypeId(int $typeId) : int{
-		return $typeId >= self::LAB_TABLE_COMBINE ? $typeId + 2 : $typeId;
-	}
+	public const INNER_TYPES = [
+		self::TAKE => 0,
+		self::PLACE => 1,
+		self::SWAP => 2,
+		self::DROP => 3,
+		self::DESTROY => 4,
+		self::CRAFTING_CONSUME_INPUT => 5,
+		self::CRAFTING_CREATE_SPECIFIC_RESULT => 6,
+		//7 PlaceItemInContainer_DEPRECATED
+		//8 TakeItemFromContainer_DEPRECATED
+		self::LAB_TABLE_COMBINE => 9,
+		self::BEACON_PAYMENT => 10,
+		self::MINE_BLOCK => 11,
+		self::CRAFTING_RECIPE => 12,
+		self::CRAFTING_RECIPE_AUTO => 13, //recipe book?
+		self::CREATIVE_CREATE => 14,
+		self::CRAFTING_RECIPE_OPTIONAL => 15, //anvil/cartography table rename
+		self::CRAFTING_GRINDSTONE => 16,
+		self::CRAFTING_LOOM => 17,
+		self::CRAFTING_NON_IMPLEMENTED_DEPRECATED_ASK_TY_LAING => 18,
+		self::CRAFTING_RESULTS_DEPRECATED_ASK_TY_LAING => 19, //no idea what this is for
+	];
 }

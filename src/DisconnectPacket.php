@@ -22,7 +22,7 @@ use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 class DisconnectPacket extends DataPacket implements ClientboundPacket, ServerboundPacket{
 	public const NETWORK_ID = ProtocolInfo::DISCONNECT_PACKET;
 
-	public int $reason;
+	public int $reason; //TODO: add constants / enum
 	public ?string $message;
 	public ?string $filteredMessage;
 

@@ -17,15 +17,14 @@ namespace pocketmine\network\mcpe\protocol\types\inventory\stackrequest;
 use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
-use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\GetTypeIdFromConstTrait;
 use pocketmine\network\mcpe\protocol\types\recipe\RecipeIngredient;
-use function count;
 
 /**
  * Tells that the current transaction crafted the specified recipe, using the recipe book. This is effectively the same
  * as the regular crafting result action.
+ * Spec name: ItemStackRequestCraftRecipeAutoAction
  */
 final class CraftRecipeAutoStackRequestAction extends ItemStackRequestAction{
 	use GetTypeIdFromConstTrait;
@@ -55,19 +54,13 @@ final class CraftRecipeAutoStackRequestAction extends ItemStackRequestAction{
 	public static function read(ByteBufferReader $in) : self{
 		$recipeId = CommonTypes::readRecipeNetId($in);
 		$repetitions = Byte::readUnsigned($in);
-		$ingredients = [];
-		for($i = 0, $count = VarInt::readUnsignedInt($in); $i < $count; ++$i){
-			$ingredients[] = CommonTypes::getRecipeIngredient($in);
-		}
+		$ingredients = CommonTypes::readList($in, CommonTypes::readStackRequestIngredient(...));
 		return new self($recipeId, $repetitions, $ingredients);
 	}
 
 	public function write(ByteBufferWriter $out) : void{
 		CommonTypes::writeRecipeNetId($out, $this->recipeId);
 		Byte::writeUnsigned($out, $this->repetitions);
-		VarInt::writeUnsignedInt($out, count($this->ingredients));
-		foreach($this->ingredients as $ingredient){
-			CommonTypes::putRecipeIngredient($out, $ingredient);
-		}
+		CommonTypes::writeList($out, $this->ingredients, CommonTypes::writeStackRequestIngredient(...));
 	}
 }

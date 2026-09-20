@@ -14,36 +14,33 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\skin;
 
+use pocketmine\color\Color;
 use function count;
 
 final class PersonaPieceTintColor{
 
-	public const PIECE_TYPE_PERSONA_EYES = "persona_eyes";
-	public const PIECE_TYPE_PERSONA_HAIR = "persona_hair";
-	public const PIECE_TYPE_PERSONA_MOUTH = "persona_mouth";
-
-	public const COLOR_COUNT = 4;
+	public const EXPECTED_COLOR_COUNT = 4;
 
 	/**
-	 * @param int[] $colors
-	 * @phpstan-param list<int> $colors
+	 * @param Color[] $colors
+	 * @phpstan-param array{Color, Color, Color, Color} $colors
 	 */
 	public function __construct(
-		private string $pieceType,
+		private PersonaSkinPieceType $pieceType,
 		private array $colors
 	){
-		if(count($colors) !== self::COLOR_COUNT){
-			throw new \InvalidArgumentException("Expected exactly " . self::COLOR_COUNT . " colors, got " . count($colors));
+		if(count($this->colors) !== self::EXPECTED_COLOR_COUNT){
+			throw new \InvalidArgumentException("Colors array must contain exactly " . self::EXPECTED_COLOR_COUNT . " Color objects");
 		}
 	}
 
-	public function getPieceType() : string{
+	public function getPieceType() : PersonaSkinPieceType{
 		return $this->pieceType;
 	}
 
 	/**
-	 * @return int[]
-	 * @phpstan-return list<int>
+	 * @return Color[]
+	 * @phpstan-return array{Color, Color, Color, Color}
 	 */
 	public function getColors() : array{
 		return $this->colors;

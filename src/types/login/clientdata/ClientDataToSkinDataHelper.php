@@ -14,51 +14,24 @@ declare(strict_types=1);
 
 namespace pocketmine\network\mcpe\protocol\types\login\clientdata;
 
+use pocketmine\color\Color;
 use pocketmine\network\mcpe\protocol\types\skin\PersonaPieceTintColor;
 use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPiece;
+use pocketmine\network\mcpe\protocol\types\skin\PersonaSkinPieceType;
 use pocketmine\network\mcpe\protocol\types\skin\SkinAnimation;
+use pocketmine\network\mcpe\protocol\types\skin\SkinArmSizeType;
 use pocketmine\network\mcpe\protocol\types\skin\SkinData;
 use pocketmine\network\mcpe\protocol\types\skin\SkinImage;
 use Ramsey\Uuid\Uuid;
 use function array_map;
-use function array_slice;
 use function array_values;
 use function base64_decode;
 use function count;
 use function hexdec;
-use function ltrim;
+use function is_int;
+use function preg_match;
 
 final class ClientDataToSkinDataHelper{
-
-	private const PIECE_TYPE_MAP = [
-		"persona_skeleton" => PersonaSkinPiece::PIECE_TYPE_SKELETON,
-		"persona_body" => PersonaSkinPiece::PIECE_TYPE_BODY,
-		"persona_skin" => PersonaSkinPiece::PIECE_TYPE_SKIN,
-		"persona_bottom" => PersonaSkinPiece::PIECE_TYPE_BOTTOM,
-		"persona_feet" => PersonaSkinPiece::PIECE_TYPE_FEET,
-		"persona_dress" => PersonaSkinPiece::PIECE_TYPE_DRESS,
-		"persona_top" => PersonaSkinPiece::PIECE_TYPE_TOP,
-		"persona_high_pants" => PersonaSkinPiece::PIECE_TYPE_HIGH_PANTS,
-		"persona_hands" => PersonaSkinPiece::PIECE_TYPE_HANDS,
-		"persona_outerwear" => PersonaSkinPiece::PIECE_TYPE_OUTERWEAR,
-		"persona_facial_hair" => PersonaSkinPiece::PIECE_TYPE_FACIAL_HAIR,
-		"persona_mouth" => PersonaSkinPiece::PIECE_TYPE_MOUTH,
-		"persona_eyes" => PersonaSkinPiece::PIECE_TYPE_EYES,
-		"persona_hair" => PersonaSkinPiece::PIECE_TYPE_HAIR,
-		"persona_hood" => PersonaSkinPiece::PIECE_TYPE_HOOD,
-		"persona_back" => PersonaSkinPiece::PIECE_TYPE_BACK,
-		"persona_face_accessory" => PersonaSkinPiece::PIECE_TYPE_FACE_ACCESSORY,
-		"persona_head" => PersonaSkinPiece::PIECE_TYPE_HEAD,
-		"persona_legs" => PersonaSkinPiece::PIECE_TYPE_LEGS,
-		"persona_left_leg" => PersonaSkinPiece::PIECE_TYPE_LEFT_LEG,
-		"persona_right_leg" => PersonaSkinPiece::PIECE_TYPE_RIGHT_LEG,
-		"persona_arms" => PersonaSkinPiece::PIECE_TYPE_ARMS,
-		"persona_left_arm" => PersonaSkinPiece::PIECE_TYPE_LEFT_ARM,
-		"persona_right_arm" => PersonaSkinPiece::PIECE_TYPE_RIGHT_ARM,
-		"persona_capes" => PersonaSkinPiece::PIECE_TYPE_CAPES,
-		"persona_classic_skin" => PersonaSkinPiece::PIECE_TYPE_CLASSIC_SKIN,
-		"persona_emote" => PersonaSkinPiece::PIECE_TYPE_EMOTE,
-	];
 
 	/**
 	 * @throws \InvalidArgumentException
@@ -72,32 +45,63 @@ final class ClientDataToSkinDataHelper{
 	}
 
 	/**
+	 * Parses a hex color string in #AARRGGBB or shorter formats into a Color.
+	 *
 	 * @throws \InvalidArgumentException
 	 */
-	private static function convertArmSize(string $armSize) : int{
-		return match($armSize){
-			"slim" => SkinData::ARM_SIZE_SLIM,
-			"wide", "" => SkinData::ARM_SIZE_WIDE,
-			default => throw new \InvalidArgumentException("Unknown arm size \"$armSize\"")
-		};
-	}
+	private static function parseColorString(string $colorString) : Color{
+		if(preg_match('/^#([a-fA-F0-9]{1,8})$/', $colorString, $matches) !== 1){
+			throw new \InvalidArgumentException("Invalid hex color string: '$colorString'");
+		}
 
-	private static function convertColor(string $color) : int{
-		return (int) hexdec(ltrim($color, "#"));
+		$argb = hexdec($matches[1]);
+		if(!is_int($argb)){
+			throw new \InvalidArgumentException("Invalid hex color string: '$colorString'");
+		}
+
+		return Color::fromARGB($argb);
 	}
 
 	/**
 	 * @throws \InvalidArgumentException
 	 */
-	private static function convertPieceType(string $pieceType) : int{
-		return self::PIECE_TYPE_MAP[$pieceType] ?? throw new \InvalidArgumentException("Unknown persona piece type \"$pieceType\"");
+	private static function parsePersonaSkinPiece(ClientDataPersonaSkinPiece $piece) : PersonaSkinPiece{
+		if(!Uuid::isValid($piece->PackId)){
+			throw new \InvalidArgumentException("Invalid Persona skin piece pack ID: '$piece->PackId'");
+		}
+
+		return new PersonaSkinPiece(
+			$piece->PieceId,
+			PersonaSkinPieceType::fromJsonString($piece->PieceType),
+			Uuid::fromString($piece->PackId),
+			$piece->IsDefault,
+			$piece->ProductId
+		);
+	}
+
+	/**
+	 * @throws \InvalidArgumentException
+	 */
+	private static function parsePersonaPieceTintColor(ClientDataPersonaPieceTintColor $tint) : PersonaPieceTintColor{
+		if(($colorsCount = count($tint->Colors)) !== PersonaPieceTintColor::EXPECTED_COLOR_COUNT){
+			throw new \InvalidArgumentException(
+				"Persona skin piece tint must contain exactly " . PersonaPieceTintColor::EXPECTED_COLOR_COUNT . " colors, got " . $colorsCount
+			);
+		}
+
+		/** @phpstan-var array{Color, Color, Color, Color} $colors */
+		$colors = array_values(array_map(self::parseColorString(...), $tint->Colors));
+
+		return new PersonaPieceTintColor(
+			PersonaSkinPieceType::fromJsonString($tint->PieceType),
+			$colors
+		);
 	}
 
 	/**
 	 * @throws \InvalidArgumentException
 	 */
 	public static function fromClientData(ClientData $clientData) : SkinData{
-		/** @var SkinAnimation[] $animations */
 		$animations = [];
 		foreach($clientData->AnimatedImageData as $k => $animation){
 			$animations[] = new SkinAnimation(
@@ -111,6 +115,7 @@ final class ClientDataToSkinDataHelper{
 				$animation->AnimationExpression
 			);
 		}
+
 		return new SkinData(
 			$clientData->SkinId,
 			"",
@@ -123,27 +128,17 @@ final class ClientDataToSkinDataHelper{
 			self::safeB64Decode($clientData->SkinAnimationData, "SkinAnimationData"),
 			$clientData->CapeId,
 			null,
-			self::convertArmSize($clientData->ArmSize),
-			self::convertColor($clientData->SkinColor),
-			array_map(function(ClientDataPersonaSkinPiece $piece) : PersonaSkinPiece{
-				return new PersonaSkinPiece($piece->PieceId, self::convertPieceType($piece->PieceType), Uuid::fromString($piece->PackId), $piece->IsDefault, $piece->ProductId);
-			}, $clientData->PersonaPieces),
-			array_map(function(ClientDataPersonaPieceTintColor $tint) : PersonaPieceTintColor{
-				$colors = [];
-				foreach(array_slice(array_values($tint->Colors), 0, PersonaPieceTintColor::COLOR_COUNT) as $color){
-					$colors[] = self::convertColor($color);
-				}
-				while(count($colors) < PersonaPieceTintColor::COLOR_COUNT){
-					$colors[] = 0;
-				}
-				return new PersonaPieceTintColor($tint->PieceType, $colors);
-			}, $clientData->PieceTintColors),
-			true,
+			SkinArmSizeType::fromPacket($clientData->ArmSize),
+			self::parseColorString($clientData->SkinColor),
+			array_values(array_map(self::parsePersonaSkinPiece(...), $clientData->PersonaPieces)),
+			array_values(array_map(self::parsePersonaPieceTintColor(...), $clientData->PieceTintColors)),
+			$clientData->TrustedSkin ? SkinData::TRUSTED_SKIN_TRUE : SkinData::TRUSTED_SKIN_FALSE,
 			$clientData->PremiumSkin,
 			$clientData->PersonaSkin,
 			$clientData->CapeOnClassicSkin,
 			true, //assume this is true? there's no field for it ...
 			$clientData->OverrideSkin ?? true,
+			$clientData->ProfileHash,
 		);
 	}
 }
