@@ -16,6 +16,7 @@ namespace pocketmine\network\mcpe\protocol\types\inventory;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\Byte;
 use pmmp\encoding\VarInt;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
@@ -34,6 +35,7 @@ class ReleaseItemTransactionData extends TransactionData{
 	private int $hotbarSlot;
 	private ItemStackWrapper $itemInHand;
 	private Vector3 $headPosition;
+	private int $hand = 0;
 
 	public function getActionType() : int{
 		return $this->actionType;
@@ -51,11 +53,16 @@ class ReleaseItemTransactionData extends TransactionData{
 		return $this->headPosition;
 	}
 
+	public function getHand() : int{
+		return $this->hand;
+	}
+
 	protected function decodeData(ByteBufferReader $in) : void{
 		$this->actionType = VarInt::readSignedInt($in);
 		$this->hotbarSlot = VarInt::readSignedInt($in);
 		$this->itemInHand = CommonTypes::getItemStackWrapper($in);
 		$this->headPosition = CommonTypes::getVector3($in);
+		$this->hand = Byte::readUnsigned($in);
 	}
 
 	protected function encodeData(ByteBufferWriter $out) : void{
@@ -63,6 +70,7 @@ class ReleaseItemTransactionData extends TransactionData{
 		VarInt::writeSignedInt($out, $this->hotbarSlot);
 		CommonTypes::putItemStackWrapper($out, $this->itemInHand);
 		CommonTypes::putVector3($out, $this->headPosition);
+		Byte::writeUnsigned($out, $this->hand);
 	}
 
 	/**
@@ -81,8 +89,9 @@ class ReleaseItemTransactionData extends TransactionData{
 	 * @param NetworkInventoryAction[] $actions
 	 * @phpstan-param list<NetworkInventoryAction> $actions
 	 */
-	public static function new(array $actions, int $actionType, int $hotbarSlot, ItemStackWrapper $itemInHand, Vector3 $headPosition) : self{
+	public static function new(array $actions, int $actionType, int $hotbarSlot, ItemStackWrapper $itemInHand, Vector3 $headPosition, int $hand = 0) : self{
 		$result = self::initSelf($actionType, $hotbarSlot, $itemInHand, $headPosition);
+		$result->hand = $hand;
 		$result->actions = $actions;
 		return $result;
 	}

@@ -33,13 +33,15 @@ class AnimatePacket extends DataPacket implements ClientboundPacket, Serverbound
 	public int $actorRuntimeId;
 	public float $data = 0.0;
 	public ?string $swingSource = null;
+	public int $hand = 0;
 
-	public static function create(int $actorRuntimeId, int $action, float $data = 0.0, ?string $swingSource = null) : self{
+	public static function create(int $actorRuntimeId, int $action, float $data = 0.0, ?string $swingSource = null, int $hand = 0) : self{
 		$result = new self;
 		$result->actorRuntimeId = $actorRuntimeId;
 		$result->action = $action;
 		$result->data = $data;
 		$result->swingSource = $swingSource;
+		$result->hand = $hand;
 		return $result;
 	}
 
@@ -48,6 +50,7 @@ class AnimatePacket extends DataPacket implements ClientboundPacket, Serverbound
 		$this->actorRuntimeId = CommonTypes::getActorRuntimeId($in);
 		$this->data = LE::readFloat($in);
 		$this->swingSource = CommonTypes::readOptional($in, CommonTypes::getString(...));
+		$this->hand = Byte::readUnsigned($in);
 	}
 
 	protected function encodePayload(ByteBufferWriter $out) : void{
@@ -55,6 +58,7 @@ class AnimatePacket extends DataPacket implements ClientboundPacket, Serverbound
 		CommonTypes::putActorRuntimeId($out, $this->actorRuntimeId);
 		LE::writeFloat($out, $this->data);
 		CommonTypes::writeOptional($out, $this->swingSource, CommonTypes::putString(...));
+		Byte::writeUnsigned($out, $this->hand);
 	}
 
 	public function handle(PacketHandlerInterface $handler) : bool{

@@ -16,6 +16,7 @@ namespace pocketmine\network\mcpe\protocol\types\inventory;
 
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\Byte;
 use pmmp\encoding\VarInt;
 use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\InventoryTransactionPacket;
@@ -34,6 +35,7 @@ class UseItemOnEntityTransactionData extends TransactionData{
 	private int $actorRuntimeId;
 	private int $actionType;
 	private int $hotbarSlot;
+	private int $hand = 0;
 	private ItemStackWrapper $itemInHand;
 	private Vector3 $playerPosition;
 	private Vector3 $clickPosition;
@@ -48,6 +50,10 @@ class UseItemOnEntityTransactionData extends TransactionData{
 
 	public function getHotbarSlot() : int{
 		return $this->hotbarSlot;
+	}
+
+	public function getHand() : int{
+		return $this->hand;
 	}
 
 	public function getItemInHand() : ItemStackWrapper{
@@ -66,6 +72,7 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		$this->actorRuntimeId = CommonTypes::getActorRuntimeId($in);
 		$this->actionType = VarInt::readSignedInt($in);
 		$this->hotbarSlot = VarInt::readSignedInt($in);
+		$this->hand = Byte::readUnsigned($in);
 		$this->itemInHand = CommonTypes::getItemStackWrapper($in);
 		$this->playerPosition = CommonTypes::getVector3($in);
 		$this->clickPosition = CommonTypes::getVector3($in);
@@ -75,6 +82,7 @@ class UseItemOnEntityTransactionData extends TransactionData{
 		CommonTypes::putActorRuntimeId($out, $this->actorRuntimeId);
 		VarInt::writeSignedInt($out, $this->actionType);
 		VarInt::writeSignedInt($out, $this->hotbarSlot);
+		Byte::writeUnsigned($out, $this->hand);
 		CommonTypes::putItemStackWrapper($out, $this->itemInHand);
 		CommonTypes::putVector3($out, $this->playerPosition);
 		CommonTypes::putVector3($out, $this->clickPosition);
@@ -98,8 +106,9 @@ class UseItemOnEntityTransactionData extends TransactionData{
 	 * @param NetworkInventoryAction[] $actions
 	 * @phpstan-param list<NetworkInventoryAction> $actions
 	 */
-	public static function new(array $actions, int $actorRuntimeId, int $actionType, int $hotbarSlot, ItemStackWrapper $itemInHand, Vector3 $playerPosition, Vector3 $clickPosition) : self{
+	public static function new(array $actions, int $actorRuntimeId, int $actionType, int $hotbarSlot, ItemStackWrapper $itemInHand, Vector3 $playerPosition, Vector3 $clickPosition, int $hand = 0) : self{
 		$result = self::initSelf($actorRuntimeId, $actionType, $hotbarSlot, $itemInHand, $playerPosition, $clickPosition);
+		$result->hand = $hand;
 		$result->actions = $actions;
 		return $result;
 	}

@@ -118,7 +118,6 @@ final class CommonTypes{
 	/** @throws DataDecodeException */
 	public static function getSkin(ByteBufferReader $in) : SkinData{
 		$skinId = self::getString($in);
-		$skinPlayFabId = self::getString($in);
 		$skinResourcePatch = self::getString($in);
 		$skinData = self::getSkinImage($in);
 		$animations = self::readList($in, static function(ByteBufferReader $in) : SkinAnimation{
@@ -167,7 +166,7 @@ final class CommonTypes{
 
 		return new SkinData(
 			$skinId,
-			$skinPlayFabId,
+			"",
 			$skinResourcePatch,
 			$skinData,
 			$animations,
@@ -193,7 +192,6 @@ final class CommonTypes{
 
 	public static function putSkin(ByteBufferWriter $out, SkinData $skin) : void{
 		self::putString($out, $skin->getSkinId());
-		self::putString($out, $skin->getPlayFabId());
 		self::putString($out, $skin->getResourcePatch());
 		self::putSkinImage($out, $skin->getSkinImage());
 		self::writeList($out, $skin->getAnimations(), function(ByteBufferWriter $out, SkinAnimation $animation) : void{
